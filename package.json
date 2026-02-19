@@ -18,7 +18,8 @@
   "files": [
     "apps/cli/dist",
     "README.md",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "README.zh-TW.md"
   ],
   "bin": {
     "acommons": "apps/cli/dist/cli.js"
