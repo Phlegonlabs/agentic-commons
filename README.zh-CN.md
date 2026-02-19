@@ -148,8 +148,6 @@ npm run typecheck -w @agentic-commons/shared
 - 安全报告：GitHub Security Advisories（私密）
 - 维护策略：best-effort，无 SLA
 
-详情见 `SUPPORT.md`。
-
 ## 许可证
 
 MIT，见 `LICENSE`。

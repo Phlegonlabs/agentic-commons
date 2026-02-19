@@ -148,8 +148,6 @@ Please read `CONTRIBUTING.md` before opening issues or PRs.
 - Security reports: GitHub Security Advisories (private)
 - Maintenance policy: best-effort, no SLA
 
-See `SUPPORT.md` for details.
-
 ## License
 
 MIT. See `LICENSE`.
