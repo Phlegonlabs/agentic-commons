@@ -1,14 +1,25 @@
 import chalk from 'chalk'
 import { readClaudeStats } from '../sources/claude.js'
 import { readCodexSessions } from '../sources/codex.js'
+import { readOpenCodeStats } from '../sources/opencode.js'
+import { readGeminiStats } from '../sources/gemini.js'
 import { printHeader, printTable, fmtNum } from '../format.js'
 import { addBreakdown, emptyBreakdown, fromClaudeUsage, fromCodexUsage } from '../token-metrics.js'
 import type { TokenBreakdown } from '../token-metrics.js'
 
+type ToolSource = 'claude' | 'codex' | 'opencode' | 'gemini'
+
 type ModelRow = {
   model: string
-  source: 'claude' | 'codex'
+  source: ToolSource
   tokens: TokenBreakdown
+}
+
+const SOURCE_COLOR: Record<ToolSource, (s: string) => string> = {
+  claude: chalk.cyan,
+  codex: chalk.yellow,
+  opencode: chalk.magenta,
+  gemini: chalk.green,
 }
 
 export async function modelsCommand(): Promise<void> {
@@ -16,6 +27,8 @@ export async function modelsCommand(): Promise<void> {
     readClaudeStats(),
     readCodexSessions(),
   ])
+  const opencode = readOpenCodeStats()
+  const gemini = readGeminiStats()
 
   printHeader('Agentic Commons - Model Breakdown')
 
@@ -40,12 +53,20 @@ export async function modelsCommand(): Promise<void> {
     }
 
     for (const [model, totals] of codexByModel.entries()) {
-      models.push({
-        model,
-        source: 'codex',
-        tokens: totals,
-      })
+      models.push({ model, source: 'codex', tokens: totals })
     }
+  }
+
+  for (const m of opencode?.models ?? []) {
+    models.push({
+      model: `${m.provider}/${m.model}`,
+      source: 'opencode',
+      tokens: m.tokens,
+    })
+  }
+
+  for (const m of gemini?.models ?? []) {
+    models.push({ model: m.model, source: 'gemini', tokens: m.tokens })
   }
 
   if (models.length === 0) {
@@ -56,7 +77,7 @@ export async function modelsCommand(): Promise<void> {
   models.sort((a, b) => b.tokens.totalIO - a.tokens.totalIO)
 
   const rows = models.map(model => [
-    model.source === 'claude' ? chalk.cyan(model.model) : chalk.yellow(model.model),
+    SOURCE_COLOR[model.source](model.model),
     fmtNum(model.tokens.inputUncached),
     fmtNum(model.tokens.output),
     fmtNum(model.tokens.cachedRead),
@@ -66,7 +87,7 @@ export async function modelsCommand(): Promise<void> {
 
   printTable(
     [
-      { header: 'Model', width: 32, align: 'left' },
+      { header: 'Model', width: 36, align: 'left' },
       { header: 'Input*', width: 12, align: 'right' },
       { header: 'Output', width: 12, align: 'right' },
       { header: 'Cached Read', width: 16, align: 'right' },

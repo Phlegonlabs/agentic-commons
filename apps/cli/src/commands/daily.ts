@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import { readClaudeStats } from '../sources/claude.js'
 import { readCodexSessions } from '../sources/codex.js'
+import { readOpenCodeStats } from '../sources/opencode.js'
+import { readGeminiStats } from '../sources/gemini.js'
 import { printHeader, printTable, fmtNum } from '../format.js'
 import { codexIOTokens } from '../token-metrics.js'
 
@@ -9,6 +11,8 @@ export async function dailyCommand(): Promise<void> {
     readClaudeStats(),
     readCodexSessions(),
   ])
+  const opencode = readOpenCodeStats()
+  const gemini = readGeminiStats()
 
   printHeader('Agentic Commons - Daily Usage (14 days)')
 
@@ -41,12 +45,24 @@ export async function dailyCommand(): Promise<void> {
     codexByDate.set(s.date, existing)
   }
 
+  const ocByDate = new Map<string, { sessions: number; tokens: number }>()
+  for (const d of opencode?.daily ?? []) {
+    ocByDate.set(d.date, { sessions: d.sessions, tokens: d.inputUncached + d.output })
+  }
+
+  const gmByDate = new Map<string, { sessions: number; tokens: number }>()
+  for (const d of gemini?.daily ?? []) {
+    gmByDate.set(d.date, { sessions: d.sessions, tokens: d.inputUncached + d.output })
+  }
+
   const rows: string[][] = []
   for (const date of dates) {
     const ct = claudeTokensByDate.get(date) ?? 0
     const ca = claudeActivityByDate.get(date)
     const cx = codexByDate.get(date)
-    const total = ct + (cx?.tokens ?? 0)
+    const oc = ocByDate.get(date)
+    const gm = gmByDate.get(date)
+    const total = ct + (cx?.tokens ?? 0) + (oc?.tokens ?? 0) + (gm?.tokens ?? 0)
 
     if (total === 0 && !ca) continue
 
@@ -54,8 +70,10 @@ export async function dailyCommand(): Promise<void> {
       chalk.dim(date.slice(5)),
       ct > 0 ? fmtNum(ct) : chalk.dim('--'),
       cx ? fmtNum(cx.tokens) : chalk.dim('--'),
+      oc ? fmtNum(oc.tokens) : chalk.dim('--'),
+      gm ? fmtNum(gm.tokens) : chalk.dim('--'),
       fmtNum(total),
-      fmtNum((ca?.sessions ?? 0) + (cx?.sessions ?? 0)),
+      fmtNum((ca?.sessions ?? 0) + (cx?.sessions ?? 0) + (oc?.sessions ?? 0) + (gm?.sessions ?? 0)),
     ])
   }
 
@@ -69,6 +87,8 @@ export async function dailyCommand(): Promise<void> {
       { header: 'Date', width: 6, align: 'left' },
       { header: 'Claude IO', width: 12, align: 'right' },
       { header: 'Codex IO', width: 12, align: 'right' },
+      { header: 'OC IO', width: 12, align: 'right' },
+      { header: 'Gemini IO', width: 12, align: 'right' },
       { header: 'Total IO', width: 12, align: 'right' },
       { header: 'Sessions', width: 8, align: 'right' },
     ],

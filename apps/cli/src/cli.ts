@@ -13,6 +13,7 @@ import { updateCommand } from './commands/update.js'
 import { doctorCommand } from './commands/doctor.js'
 import { totalCommand } from './commands/total.js'
 import { watchCommand } from './commands/watch.js'
+import { probeCommand } from './commands/probe.js'
 
 const commands: Record<string, () => Promise<void>> = {
   stats: statsCommand,
@@ -28,6 +29,7 @@ const commands: Record<string, () => Promise<void>> = {
   doctor: doctorCommand,
   total: totalCommand,
   watch: watchCommand,
+  probe: probeCommand,
 }
 
 function printHelp(): void {
@@ -50,6 +52,7 @@ function printHelp(): void {
     doctor    Run local/cloud diagnostics
     total     All-time token total from local history
     watch     Watch Codex sessions and upload near real-time
+    probe     Detect installed AI coding tools and API keys
 `)
 }
 
