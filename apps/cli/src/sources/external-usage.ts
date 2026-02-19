@@ -88,6 +88,14 @@ function sanitizeModel(value: unknown): string | null {
   return normalized
 }
 
+function inferProviderFromModel(model: string): string | null {
+  const lower = model.toLowerCase()
+  if (lower.startsWith('gpt-') || lower.startsWith('o1-') || lower.startsWith('o3-') || lower.startsWith('o4-')) return 'openai'
+  if (lower.startsWith('claude-')) return 'anthropic'
+  if (lower.startsWith('gemini-')) return 'google'
+  return null
+}
+
 function toIsoDate(value: unknown): string | null {
   if (typeof value === 'string') {
     if (ISO_DATE_REGEX.test(value)) {
@@ -213,7 +221,7 @@ function parseEventLine(line: string, defaults: SourceDefaults): UsageDaily | nu
   return {
     date,
     source: sanitizeSource(parsed.source, defaults.source),
-    provider: sanitizeProvider(parsed.provider, defaults.provider),
+    provider: sanitizeProvider(parsed.provider, inferProviderFromModel(model) ?? defaults.provider),
     model,
     input_uncached: usage.input_uncached,
     output: usage.output,

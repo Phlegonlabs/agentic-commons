@@ -130,6 +130,23 @@ function payloadKey(payload: PayloadIdentity): string {
   return `${payload.date}|${payload.provider}|${payload.model}`
 }
 
+function deduplicatePayloads(payloads: UsageDaily[]): UsageDaily[] {
+  const groups = new Map<string, UsageDaily[]>()
+  for (const p of payloads) {
+    const key = `${p.date}|${p.source}|${p.model}`
+    const group = groups.get(key) ?? []
+    group.push(p)
+    groups.set(key, group)
+  }
+
+  const result: UsageDaily[] = []
+  for (const group of groups.values()) {
+    const known = group.filter(p => p.provider !== 'unknown')
+    result.push(...(known.length > 0 ? known : group))
+  }
+  return result
+}
+
 async function resolveCloudAuth(): Promise<{ apiBase: string | null; token: string | null; devUserId: string | null }> {
   const config = await readConfig()
   const apiBase = readApiBase(config.apiBase)
@@ -268,7 +285,7 @@ export async function syncCommand(): Promise<void> {
   await writeStore(store)
 
   const claudePayloads = buildClaudePayloads(claude, claudeRealtimePayloads)
-  const cloudPayloads = [...claudePayloads, ...codexPayloads, ...externalUsage.payloads]
+  const cloudPayloads = deduplicatePayloads([...claudePayloads, ...codexPayloads, ...externalUsage.payloads])
   const upload = await uploadCloudPayloads(cloudPayloads)
 
   const uploadedCodexKeys = upload.uploaded
