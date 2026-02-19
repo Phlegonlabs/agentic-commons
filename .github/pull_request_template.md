@@ -27,3 +27,4 @@ npm run typecheck -w @agentic-commons/shared
 - [ ] No secrets or private environment values in this PR
 - [ ] Documentation updated (if needed)
 - [ ] Linked issue (if applicable)
+- [ ] Scope belongs to public repo (`agentic-commons`) and excludes private platform code

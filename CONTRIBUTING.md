@@ -47,6 +47,29 @@ Use clear commit messages, for example:
 - `fix: correct y`
 - `chore: update z`
 
+## Commit and Push Workflow
+
+This repository uses branch protection on `main`.
+
+Use this flow:
+
+```bash
+git checkout -b feat/short-name
+npm run build
+npm run typecheck
+git add <files>
+git commit -m "type: concise summary"
+git push -u origin feat/short-name
+```
+
+Then open a PR to `main` and wait for `build-and-test` to pass.
+
+Repository boundary:
+
+- Public repo (`agentic-commons`): only CLI/shared/public docs changes.
+- Private repo (`agentic-commons-platform`): API/web/infrastructure changes.
+- Do not mix public and private changes in one commit.
+
 ## Code of Conduct
 
 By participating, you agree to follow `CODE_OF_CONDUCT.md`.
