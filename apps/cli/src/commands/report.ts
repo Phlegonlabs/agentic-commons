@@ -71,18 +71,25 @@ export async function reportCommand(): Promise<void> {
     }
   }
   if (codexSessions.length > 0) {
-    const agg = codexSessions.reduce(
-      (sum, s) => addBreakdown(sum, fromCodexUsage(s.totalTokens)),
-      emptyBreakdown(),
-    )
-    modelRows.push(`<tr>
-      <td>gpt-5 (codex)</td>
+    const codexByModel = new Map<string, ReturnType<typeof emptyBreakdown>>()
+    for (const session of codexSessions) {
+      const model = session.model?.trim() || 'gpt-5'
+      const current = codexByModel.get(model) ?? emptyBreakdown()
+      codexByModel.set(model, addBreakdown(current, fromCodexUsage(session.totalTokens)))
+    }
+
+    const codexRows = [...codexByModel.entries()]
+      .sort((a, b) => b[1].totalIO - a[1].totalIO)
+      .map(([model, agg]) => `<tr>
+      <td>${escapeHtml(model)}</td>
       <td class="r">${fmtNum(agg.inputUncached)}</td>
       <td class="r">${fmtNum(agg.output)}</td>
       <td class="r">${fmtNum(agg.cachedRead)}</td>
-      <td class="r"><span class="dim">--</span></td>
+      <td class="r">${fmtNum(agg.cachedWrite)}</td>
       <td class="r">${fmtNum(agg.totalIO)}</td>
     </tr>`)
+
+    modelRows.push(...codexRows)
   }
 
   const html = `<!DOCTYPE html>

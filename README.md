@@ -153,6 +153,7 @@ npx wrangler secret put SUPABASE_URL --config apps/api/wrangler.toml
 npx wrangler secret put SUPABASE_ANON_KEY --config apps/api/wrangler.toml
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config apps/api/wrangler.toml
 npx wrangler secret put API_TOKEN_PEPPER --config apps/api/wrangler.toml
+npx wrangler secret put MAINTENANCE_TOKEN --config apps/api/wrangler.toml
 npm run deploy:api
 ```
 
@@ -206,7 +207,7 @@ npm publish --access public
 - `acommons setup` now runs a post-setup self-check (`acommons doctor`) automatically.
 - `acommons setup` automatically migrates legacy Claude `hooks.Stop` command entries to matcher-based format and repairs malformed Stop entries where `hooks` is missing/invalid.
 - `acommons log` (called by Claude Stop hook) now prefers realtime token aggregation from hook `transcript_path` usage and uploads cumulative daily totals without reading/storing message content.
-- After a device is linked once, uploads use the stored API token; continuous web login is not required.
+- After a device is linked once, uploads use a locally stored device token (Windows stores it with DPAPI encryption at rest); continuous web login is not required.
 - Multiple devices can be linked to the same account; each device can upload independently.
 - `acommons sync` uses Claude realtime ledger totals when available and falls back to `stats-cache` aggregates otherwise.
 - `acommons sync` uses Codex realtime ledger totals when available and falls back to `.codex/sessions` aggregation otherwise.
@@ -215,12 +216,21 @@ npm publish --access public
 - `acommons link` can be used anytime to force a re-link.
 - `acommons sync` checks npm once per day and auto-updates to latest by default.
 - `acommons update` can be used for manual upgrade on demand.
+- API stores `usage_daily` for recent windows and maintains `usage_all_time` aggregates for all-time leaderboard/profile totals.
+- API defaults `/v1/me/usage` to last 30 days when `from/to` are omitted.
+- API runs daily cleanup of `usage_daily` rows older than `USAGE_DAILY_RETENTION_DAYS` (default 90) via Worker cron trigger.
 
 For local dev-only header auth fallback, set:
 
 ```powershell
 $env:ACOMMONS_ALLOW_DEV_HEADER_AUTH="true"
 $env:ACOMMONS_USER_ID="demo-user"
+```
+
+For local API development (instead of production API base), set:
+
+```powershell
+$env:ACOMMONS_LOCAL_API="true"
 ```
 
 To disable auto-update:

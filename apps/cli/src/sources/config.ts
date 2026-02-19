@@ -10,6 +10,8 @@ const DEFAULT_CONFIG: SetupConfig = {
   lastSetup: '',
   autoUpdateEnabled: true,
 }
+const CONFIG_DIR_MODE = 0o700
+const CONFIG_FILE_MODE = 0o600
 
 function mergeConfig(raw: Partial<SetupConfig> | null): SetupConfig {
   return {
@@ -29,8 +31,11 @@ async function readConfig(): Promise<SetupConfig> {
 }
 
 async function writeConfig(config: SetupConfig): Promise<void> {
-  await mkdir(acDir, { recursive: true })
-  await writeFile(acConfigPath, JSON.stringify(config, null, 2), 'utf-8')
+  await mkdir(acDir, { recursive: true, mode: CONFIG_DIR_MODE })
+  await writeFile(acConfigPath, JSON.stringify(config, null, 2), {
+    encoding: 'utf-8',
+    mode: CONFIG_FILE_MODE,
+  })
 }
 
 export { readConfig, writeConfig }

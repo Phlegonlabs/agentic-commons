@@ -32,15 +32,20 @@ export async function modelsCommand(): Promise<void> {
   }
 
   if (codexSessions.length > 0) {
-    const totals = codexSessions.reduce(
-      (sum, session) => addBreakdown(sum, fromCodexUsage(session.totalTokens)),
-      emptyBreakdown(),
-    )
-    models.push({
-      model: 'gpt-5 (codex)',
-      source: 'codex',
-      tokens: totals,
-    })
+    const codexByModel = new Map<string, TokenBreakdown>()
+    for (const session of codexSessions) {
+      const model = session.model?.trim() || 'gpt-5'
+      const current = codexByModel.get(model) ?? emptyBreakdown()
+      codexByModel.set(model, addBreakdown(current, fromCodexUsage(session.totalTokens)))
+    }
+
+    for (const [model, totals] of codexByModel.entries()) {
+      models.push({
+        model,
+        source: 'codex',
+        tokens: totals,
+      })
+    }
   }
 
   if (models.length === 0) {

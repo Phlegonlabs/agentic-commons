@@ -135,6 +135,7 @@ type CodexSessionData = {
   sessionId: string
   date: string
   timestamp: string
+  model?: string
   totalTokens: CodexTokenUsage
   rateLimits: CodexTokenEvent['payload']['rate_limits'] | null
 }

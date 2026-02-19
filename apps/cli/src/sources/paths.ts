@@ -12,4 +12,6 @@ export const acClaudeLedgerPath = join(acDir, 'claude-ledger.json')
 export const acCodexLedgerPath = join(acDir, 'codex-ledger.json')
 export const acReportPath = join(acDir, 'report.html')
 export const acConfigPath = join(acDir, 'config.json')
+export const acApiTokenPath = join(acDir, 'api-token.secret')
+export const acDeviceSecretPath = join(acDir, 'device-secret.key')
 

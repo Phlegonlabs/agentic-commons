@@ -3,7 +3,9 @@ import { readCodexSessions } from '../sources/codex.js'
 import { readStore, writeStore } from '../sources/store.js'
 import { printHeader } from '../format.js'
 import { fromCodexUsage, emptyBreakdown, addBreakdown } from '../token-metrics.js'
-import { readConfig } from '../sources/config.js'
+import { readConfig, writeConfig } from '../sources/config.js'
+import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
+import { readDeviceIdentityPayload } from '../sources/device-identity.js'
 import { linkDevice, readApiBase } from './link-shared.js'
 import { maybeAutoUpdate } from './auto-update.js'
 import { listAllClaudePayloadsFromLedger, readClaudeLedger } from '../sources/claude-ledger.js'
@@ -77,18 +79,26 @@ function buildClaudePayloads(
 }
 
 function buildCodexFallbackPayloads(codexSessions: CodexSessionData[]): CloudUsagePayload[] {
-  const codexByDay = new Map<string, ReturnType<typeof emptyBreakdown>>()
+  const codexByDayModel = new Map<string, ReturnType<typeof emptyBreakdown>>()
   for (const session of codexSessions) {
-    const current = codexByDay.get(session.date) ?? emptyBreakdown()
-    codexByDay.set(session.date, addBreakdown(current, fromCodexUsage(session.totalTokens)))
+    const model = session.model?.trim() || 'gpt-5'
+    const key = `${session.date}|${model}`
+    const current = codexByDayModel.get(key) ?? emptyBreakdown()
+    codexByDayModel.set(key, addBreakdown(current, fromCodexUsage(session.totalTokens)))
   }
 
   const payloads: CloudUsagePayload[] = []
-  for (const [date, total] of codexByDay.entries()) {
+  for (const [key, total] of codexByDayModel.entries()) {
+    const separator = key.indexOf('|')
+    if (separator <= 0 || separator >= key.length - 1) {
+      continue
+    }
+    const date = key.slice(0, separator)
+    const model = key.slice(separator + 1)
     payloads.push({
       date,
       source: 'codex',
-      model: 'gpt-5',
+      model,
       input_uncached: total.inputUncached,
       output: total.output,
       cached_read: total.cachedRead,
@@ -156,11 +166,26 @@ async function resolveCloudAuth(): Promise<{ apiBase: string | null; token: stri
     }
   }
 
-  if (config.apiToken) {
+  const storedToken = await readStoredApiToken()
+  if (storedToken) {
     return {
       apiBase,
-      token: config.apiToken,
+      token: storedToken,
       devUserId: null,
+    }
+  }
+
+  if (config.apiToken) {
+    const legacyToken = config.apiToken.trim()
+    if (legacyToken) {
+      await writeStoredApiToken(legacyToken)
+      const { apiToken: _legacyApiToken, ...rest } = config
+      await writeConfig(rest)
+      return {
+        apiBase,
+        token: legacyToken,
+        devUserId: null,
+      }
     }
   }
 
@@ -208,6 +233,7 @@ async function uploadCloudPayloads(payloads: CloudUsagePayload[]): Promise<Uploa
   }
 
   const uploaded: PayloadIdentity[] = []
+  const deviceIdentity = await readDeviceIdentityPayload().catch(() => null)
 
   for (const payload of payloads) {
     const headers: Record<string, string> = {
@@ -223,7 +249,7 @@ async function uploadCloudPayloads(payloads: CloudUsagePayload[]): Promise<Uploa
     const response = await fetch(`${auth.apiBase}/v1/usage/daily`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(deviceIdentity ? { ...payload, ...deviceIdentity } : payload),
     }).catch(() => null)
 
     if (response?.ok) {

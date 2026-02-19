@@ -1,8 +1,9 @@
 import { z } from 'zod'
 
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/
+const maxTokenFieldValue = 1_000_000_000
 
-const nonNegativeInt = z.number().int().min(0)
+const nonNegativeInt = z.number().int().min(0).max(maxTokenFieldValue)
 
 const toolSourceSchema = z.union([z.literal('claude'), z.literal('codex')])
 const leaderboardPeriodSchema = z.union([z.literal('24h'), z.literal('7d'), z.literal('all')])

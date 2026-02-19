@@ -11,7 +11,9 @@ import {
   writeCodexLedger,
 } from '../sources/codex-ledger.js'
 import { codexSessionsDir } from '../sources/paths.js'
-import { readConfig } from '../sources/config.js'
+import { readConfig, writeConfig } from '../sources/config.js'
+import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
+import { readDeviceIdentityPayload } from '../sources/device-identity.js'
 import { readApiBase } from './link-shared.js'
 
 const WATCH_DEBOUNCE_MS = 10_000
@@ -54,11 +56,26 @@ async function resolveCloudAuthNonInteractive(): Promise<{ apiBase: string | nul
     }
   }
 
-  if (config.apiToken) {
+  const storedToken = await readStoredApiToken()
+  if (storedToken) {
     return {
       apiBase,
-      token: config.apiToken,
+      token: storedToken,
       devUserId: null,
+    }
+  }
+
+  if (config.apiToken) {
+    const legacyToken = config.apiToken.trim()
+    if (legacyToken) {
+      await writeStoredApiToken(legacyToken)
+      const { apiToken: _legacyApiToken, ...rest } = config
+      await writeConfig(rest)
+      return {
+        apiBase,
+        token: legacyToken,
+        devUserId: null,
+      }
     }
   }
 
@@ -89,6 +106,7 @@ async function uploadPending(entries: PendingUpload[]): Promise<UploadResult> {
   }
 
   const uploaded = new Set<string>()
+  const deviceIdentity = await readDeviceIdentityPayload().catch(() => null)
   for (const entry of entries) {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
@@ -102,7 +120,7 @@ async function uploadPending(entries: PendingUpload[]): Promise<UploadResult> {
     const response = await fetch(`${auth.apiBase}/v1/usage/daily`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(entry.payload),
+      body: JSON.stringify(deviceIdentity ? { ...entry.payload, ...deviceIdentity } : entry.payload),
       signal: AbortSignal.timeout(5000),
     }).catch(() => null)
 

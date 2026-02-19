@@ -3,8 +3,12 @@ import { hostname, platform } from 'node:os'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
 import { readConfig, writeConfig } from '../sources/config.js'
+import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
+import { readDeviceIdentityPayload } from '../sources/device-identity.js'
 
 const execAsync = promisify(exec)
+const DEFAULT_API_BASE = 'https://api.agenticcommons.xyz'
+const LOCAL_DEV_API_BASE = 'http://127.0.0.1:8787'
 
 type DeviceStartResponse = {
   device_code: string
@@ -33,7 +37,26 @@ function readApiBase(configApiBase?: string): string {
     return configApiBase
   }
 
-  return 'http://127.0.0.1:8787'
+  if (process.env['ACOMMONS_LOCAL_API'] === 'true') {
+    return LOCAL_DEV_API_BASE
+  }
+
+  return DEFAULT_API_BASE
+}
+
+async function readPersistedToken(configToken?: string): Promise<string | null> {
+  const stored = await readStoredApiToken()
+  if (stored) {
+    return stored
+  }
+
+  const legacyToken = configToken?.trim() ?? ''
+  if (!legacyToken) {
+    return null
+  }
+
+  await writeStoredApiToken(legacyToken)
+  return legacyToken
 }
 
 async function maybeOpenBrowser(url: string): Promise<void> {
@@ -84,10 +107,16 @@ async function linkDevice(options?: { force?: boolean; openBrowser?: boolean }):
     }
   }
 
-  if (!options?.force && config.apiToken) {
+  const persistedToken = await readPersistedToken(config.apiToken)
+  if (config.apiToken) {
+    const { apiToken: _legacyApiToken, ...rest } = config
+    await writeConfig(rest)
+  }
+
+  if (!options?.force && persistedToken) {
     return {
       apiBase,
-      apiToken: config.apiToken,
+      apiToken: persistedToken,
     }
   }
 
@@ -98,10 +127,16 @@ async function linkDevice(options?: { force?: boolean; openBrowser?: boolean }):
     }
   }
 
-  const deviceLabel = hostname()
-  const start = await postJson<DeviceStartResponse>(`${apiBase}/v1/auth/device/start`, {
+  const deviceIdentity = await readDeviceIdentityPayload().catch(() => null)
+  const deviceLabel = deviceIdentity?.device_label ?? hostname()
+  const startPayload: Record<string, unknown> = {
     device_label: deviceLabel,
-  })
+  }
+  if (deviceIdentity) {
+    startPayload.device_secret = deviceIdentity.device_secret
+    startPayload.device_profile = deviceIdentity.device_profile
+  }
+  const start = await postJson<DeviceStartResponse>(`${apiBase}/v1/auth/device/start`, startPayload)
 
   console.log(`  ${chalk.cyan('Link required:')} authorize this CLI in your browser`)
   console.log(`  Open: ${start.verification_uri_complete}`)
@@ -127,10 +162,11 @@ async function linkDevice(options?: { force?: boolean; openBrowser?: boolean }):
       }
 
       if (poll.status === 'authorized') {
+        await writeStoredApiToken(poll.access_token)
+        const { apiToken: _legacyApiToken, ...rest } = config
         const next = {
-          ...config,
+          ...rest,
           apiBase,
-          apiToken: poll.access_token,
           linkedAt: new Date().toISOString(),
           deviceLabel,
         }

@@ -4,7 +4,7 @@ import { codexSessionsDir } from './paths.js'
 import type { CodexSessionData, CodexSessionMeta, CodexTokenEvent } from '../types.js'
 
 const TAIL_CHUNK = 8 * 1024
-const TAIL_FALLBACK = 32 * 1024
+const TAIL_FALLBACK = 64 * 1024
 const HEAD_CHUNK = 16 * 1024
 
 async function readTail(filePath: string, bytes: number): Promise<string> {
@@ -57,12 +57,65 @@ function parseSessionMeta(text: string): CodexSessionMeta | null {
   return null
 }
 
+function readTurnContextModel(line: string): string | null {
+  try {
+    const parsed = JSON.parse(line) as {
+      type?: string
+      payload?: {
+        model?: unknown
+        settings?: {
+          model?: unknown
+        }
+      }
+    }
+    if (parsed.type !== 'turn_context') {
+      return null
+    }
+
+    const directModel = parsed.payload?.model
+    if (typeof directModel === 'string') {
+      const normalizedDirect = directModel.trim()
+      if (normalizedDirect.length > 0) {
+        return normalizedDirect
+      }
+    }
+
+    const model = parsed.payload?.settings?.model
+    if (typeof model !== 'string') {
+      return null
+    }
+
+    const normalized = model.trim()
+    return normalized.length > 0 ? normalized : null
+  } catch {
+    return null
+  }
+}
+
+function findLastTurnContextModel(text: string): string | null {
+  const lines = text.split('\n').filter(Boolean)
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const model = readTurnContextModel(lines[index])
+    if (model) {
+      return model
+    }
+  }
+  return null
+}
+
 async function parseSessionFile(filePath: string): Promise<CodexSessionData | null> {
   let tail = await readTail(filePath, TAIL_CHUNK)
   let tokenEvent = findLastTokenEvent(tail)
-  if (!tokenEvent) {
+  let model = findLastTurnContextModel(tail)
+
+  if (!tokenEvent || !model) {
     tail = await readTail(filePath, TAIL_FALLBACK)
-    tokenEvent = findLastTokenEvent(tail)
+    if (!tokenEvent) {
+      tokenEvent = findLastTokenEvent(tail)
+    }
+    if (!model) {
+      model = findLastTurnContextModel(tail)
+    }
   }
   if (!tokenEvent) return null
 
@@ -73,6 +126,7 @@ async function parseSessionFile(filePath: string): Promise<CodexSessionData | nu
     sessionId: meta?.id ?? filePath,
     date: tokenEvent.timestamp.slice(0, 10),
     timestamp: tokenEvent.timestamp,
+    model: model ?? 'gpt-5',
     totalTokens: tokenEvent.payload.info.total_token_usage,
     rateLimits: tokenEvent.payload.rate_limits,
   }

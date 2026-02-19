@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
 import chalk from 'chalk'
 import { printHeader } from '../format.js'
-import { readConfig } from '../sources/config.js'
+import { readConfig, writeConfig } from '../sources/config.js'
+import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
 import {
   acClaudeLedgerPath,
   acCodexLedgerPath,
@@ -99,7 +100,26 @@ export async function doctorCommand(): Promise<void> {
   const config = await readConfig()
   const apiBase = readApiBase(config.apiBase)
   const envToken = process.env['ACOMMONS_API_TOKEN']?.trim() ?? null
-  const token = envToken ?? config.apiToken ?? null
+  let tokenSource = envToken ? 'env (ACOMMONS_API_TOKEN)' : 'missing'
+  const storedToken = await readStoredApiToken()
+  let token = envToken ?? storedToken ?? null
+
+  if (!envToken && !storedToken && config.apiToken) {
+    const legacyToken = config.apiToken.trim()
+    if (legacyToken) {
+      await writeStoredApiToken(legacyToken)
+      const { apiToken: _legacyApiToken, ...rest } = config
+      await writeConfig(rest)
+      token = legacyToken
+      tokenSource = 'stored secure token (migrated)'
+    }
+  }
+
+  if (!envToken && storedToken) {
+    tokenSource = 'stored secure token'
+  } else if (envToken) {
+    tokenSource = 'env (ACOMMONS_API_TOKEN)'
+  }
   const autoUpdateEnabledByEnv = process.env['ACOMMONS_AUTO_UPDATE'] !== 'false'
   const autoUpdateEnabled = autoUpdateEnabledByEnv && config.autoUpdateEnabled !== false
 
@@ -115,7 +135,7 @@ export async function doctorCommand(): Promise<void> {
 
   console.log('  Cloud')
   console.log(`  ${chalk.green('+')} API base: ${apiBase}`)
-  console.log(`  ${statusMark(Boolean(token))} Auth token: ${token ? (envToken ? 'env (ACOMMONS_API_TOKEN)' : 'stored config') : 'missing'}`)
+  console.log(`  ${statusMark(Boolean(token))} Auth token: ${token ? tokenSource : 'missing'}`)
 
   const health = await checkApiHealth(apiBase)
   console.log(`  ${statusMark(health.ok)} API health: ${health.detail}`)

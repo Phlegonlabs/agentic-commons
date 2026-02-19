@@ -29,3 +29,24 @@
 
 ## Step 7: Verification
 - [x] ~~Build, link, and test all commands~~
+
+## Security Audit (2026-02-19)
+- [ ] **→ Multi-agent security audit of agenticcommons.xyz**
+  - [ ] API security testing (auth bypass, injection, rate limiting)
+  - [ ] Frontend security testing (XSS, CORS, client-side)
+  - [ ] Infrastructure & config security review
+  - [ ] Compile final security report
+
+## Security Patch Plan (2026-02-19)
+1. [x] ~~Implement high-risk guards (`dev auth`, CORS tightening, timing-safe token compare, rate limiting)~~
+2. [x] ~~Implement data consistency fixes (`approveDeviceCode` TOCTOU, atomic usage upsert)~~
+3. [x] ~~Implement query and validation hardening (leaderboard limits, input bounds, protocol checks, error-detail redaction)~~
+4. [x] ~~Implement operational hardening (expired session cleanup, safer delete/export paths)~~
+5. [x] ~~Add/adjust tests and run verification + deploy~~
+
+## Device Bucket Plan (2026-02-19)
+1. [x] ~~Add DB primitives for per-device usage + device registry~~
+2. [x] ~~Thread device identity through API upload path and store layer~~
+3. [x] ~~Update CLI to persist/send device identity for link/upload~~
+4. [x] ~~Add regression tests for reconnect/no-duplicate behavior~~
+5. [x] ~~Verify + deploy + online smoke test~~

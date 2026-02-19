@@ -1,7 +1,9 @@
 import { readClaudeStats } from '../sources/claude.js'
 import { readStore, writeStore } from '../sources/store.js'
 import { fmtNum } from '../format.js'
-import { readConfig } from '../sources/config.js'
+import { readConfig, writeConfig } from '../sources/config.js'
+import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
+import { readDeviceIdentityPayload } from '../sources/device-identity.js'
 import { readApiBase } from './link-shared.js'
 import {
   addRowsToLedger,
@@ -55,11 +57,26 @@ async function resolveCloudAuthNonInteractive(): Promise<{ apiBase: string | nul
     }
   }
 
-  if (config.apiToken) {
+  const storedToken = await readStoredApiToken()
+  if (storedToken) {
     return {
       apiBase,
-      token: config.apiToken,
+      token: storedToken,
       devUserId: null,
+    }
+  }
+
+  if (config.apiToken) {
+    const legacyToken = config.apiToken.trim()
+    if (legacyToken) {
+      await writeStoredApiToken(legacyToken)
+      const { apiToken: _legacyApiToken, ...rest } = config
+      await writeConfig(rest)
+      return {
+        apiBase,
+        token: legacyToken,
+        devUserId: null,
+      }
     }
   }
 
@@ -90,6 +107,7 @@ async function uploadClaudePayloads(payloads: CloudUsagePayload[]): Promise<Uplo
   }
 
   let uploaded = 0
+  const deviceIdentity = await readDeviceIdentityPayload().catch(() => null)
 
   for (const payload of filteredPayloads) {
     const headers: Record<string, string> = {
@@ -104,7 +122,7 @@ async function uploadClaudePayloads(payloads: CloudUsagePayload[]): Promise<Uplo
     const response = await fetch(`${auth.apiBase}/v1/usage/daily`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(deviceIdentity ? { ...payload, ...deviceIdentity } : payload),
       signal: AbortSignal.timeout(5000),
     }).catch(() => null)
 

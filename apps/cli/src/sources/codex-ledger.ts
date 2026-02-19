@@ -170,12 +170,13 @@ async function writeCodexLedger(ledger: CodexRealtimeLedger): Promise<void> {
 function applyCodexSessionsToLedger(
   ledger: CodexRealtimeLedger,
   sessions: CodexSessionData[],
-  model: string = 'gpt-5',
+  modelOverride?: string,
 ): string[] {
   const touched = new Set<string>()
   const sorted = [...sessions].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
 
   for (const session of sorted) {
+    const model = modelOverride ?? session.model ?? 'gpt-5'
     const current = fromCodexUsage(session.totalTokens)
     const previous = ledger.sessions[session.sessionId]
 
