@@ -2,7 +2,16 @@
   "name": "agentic-commons",
   "version": "0.1.11",
   "description": "Unified token usage stats for AI coding tools",
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://github.com/Phlegonlabs/agentic-commons",
+  "bugs": {
+    "url": "https://github.com/Phlegonlabs/agentic-commons/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Phlegonlabs/agentic-commons.git"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

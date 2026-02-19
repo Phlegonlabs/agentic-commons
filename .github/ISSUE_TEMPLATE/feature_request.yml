@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a new capability or improvement
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Please keep scope and outcomes clear.
+  - type: input
+    id: problem
+    attributes:
+      label: Problem statement
+      placeholder: What user/problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: Describe the proposed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria
+      placeholder: How should we know this is done?

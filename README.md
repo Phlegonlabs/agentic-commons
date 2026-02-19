@@ -1,89 +1,63 @@
-# agentic-commons
+# Agentic Commons
 
-Agentic Commons is a CLI + API + Web app for Claude/Codex token analytics.
+Agentic Commons is a CLI + API + Web stack for private-by-design AI usage analytics.
 
-## Project Layout
+Agentic Commons 是一个由 CLI + API + Web 组成的 AI 使用量分析系统，默认以隐私为边界。
 
-- `apps/cli/src/*`: CLI source (`acommons` command)
-- `apps/api`: API service (Cloudflare Worker entry + local Node server)
-- `apps/web`: frontend (React Router + Tailwind)
+## What It Does / 项目做什么
+
+- Collects local Claude/Codex usage and aggregates daily model-level token totals.
+- Syncs to cloud for leaderboard and public profile analytics.
+- Keeps prompts, transcript content, and raw logs on your machine.
+
+- 在本地收集 Claude/Codex 使用量，并按天按模型聚合 token 总量。
+- 同步到云端用于排行榜与公开 profile 统计。
+- 不上传 prompts、对话内容和原始日志。
+
+## Core Principles / 核心原则
+
+- Privacy-first telemetry: upload allowlist only.
+- Verifiable aggregation: model/day/token totals are auditable.
+- Practical automation: setup installs scheduler and runs health checks.
+
+- 隐私优先：仅上传白名单字段。
+- 可验证聚合：按模型/日期/token 的统计可审计。
+- 实用自动化：setup 自动安装定时任务并执行自检。
+
+## Repository Status / 仓库状态
+
+This repository is currently in open-source readiness mode and may remain private until maintainers publish it.  
+当前仓库处于开源准备阶段，在维护者正式发布前可保持私有。
+
+## Repository Layout / 仓库结构
+
+- `apps/cli`: `acommons` CLI source
+- `apps/api`: Cloudflare Worker API
+- `apps/web`: React + Tailwind frontend
 - `packages/shared`: shared schema/types
-- `plans/*`: planning docs
+- `supabase/migrations`: SQL migrations
+- `docs/oss`: open-source readiness docs
 
-## Requirements
+## Privacy Boundary / 隐私边界
+
+### Uploaded fields / 上传字段
+
+- `date`, `source`, `model`
+- `input_uncached`, `output`, `cached_read`, `cached_write`, `total_io`
+
+### Never uploaded / 永不上传
+
+- Prompt/message content
+- Transcript text and reasoning blocks
+- File paths and repository names
+- Raw session logs
+
+## Requirements / 环境要求
 
 - Node.js >= 20
 - npm >= 10
 
-## Open Source Safety
-
-This repo is safe to open source if secrets stay out of git.
-
-- Commit only example env files (for example `apps/web/.env.production.example`).
-- Do not commit real values in `.env*` or `apps/web/.env.production.local`.
-- Keep API secrets in Cloudflare Worker secrets only:
-  - `SUPABASE_URL`
-  - `SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `API_TOKEN_PEPPER`
-- Build-time web vars (`VITE_*`) should be injected locally or in CI, not stored in git.
-- If someone forks this repo, they must set up their own Supabase and Cloudflare project.
-
-## Local Run (Developer)
-
-1. Install dependencies:
-
-```bash
-npm install
-```
-
-2. Start API (terminal A):
-
-```bash
-npm run dev:api
-```
-
-API default: `http://127.0.0.1:8787`
-
-3. Start Web (terminal B):
-
-```powershell
-$env:VITE_API_BASE="http://127.0.0.1:8787"
-$env:VITE_SUPABASE_URL="https://<your-project>.supabase.co"
-$env:VITE_SUPABASE_ANON_KEY="<your-anon-key>"
-npm run dev:web
-```
-
-Web default: `http://127.0.0.1:5173`
-
-## CLI Usage
-
-Install globally from local repo:
-
-```bash
-npm run build
-npm i -g .
-```
-
-Basic commands:
-
-```bash
-acommons setup
-acommons stats
-acommons daily
-acommons models
-acommons rate
-acommons report
-acommons link
-acommons update
-acommons doctor
-acommons total
-acommons watch
-```
-
-### MacBook Quick Start
-
-Prerequisite: Node.js and npm are already installed.
+## Quick Start (Mac) / Mac 快速开始
 
 ```bash
 node -v
@@ -93,190 +67,155 @@ acommons setup
 acommons doctor
 ```
 
-After `setup`, automatic sync is enabled (macOS `launchd`, hourly).  
-Manual upload is optional:
+After setup, automatic sync is enabled (launchd hourly).  
+完成 setup 后会自动同步（macOS launchd 每小时）。
+
+Manual sync (optional) / 可选手动同步:
 
 ```bash
 acommons sync
 ```
 
-### Mac Troubleshooting
+## Quick Start (Windows) / Windows 快速开始
 
-If `acommons` is not found:
-
-```bash
-which acommons
+```powershell
+node -v
+npm -v
 npm i -g agentic-commons
-```
-
-If auto sync is not running:
-
-```bash
-launchctl list | grep com.agentic-commons
-cat ~/Library/LaunchAgents/com.agentic-commons.plist
-launchctl unload ~/Library/LaunchAgents/com.agentic-commons.plist 2>/dev/null
-launchctl load ~/Library/LaunchAgents/com.agentic-commons.plist
+acommons setup
 acommons doctor
 ```
 
-Optional cloud upload from CLI:
+Manual sync (optional):
 
 ```powershell
-$env:ACOMMONS_API_URL="http://127.0.0.1:8787"
-$env:ACOMMONS_USER_ID="demo-user"
 acommons sync
 ```
 
-Or with JWT:
+## CLI Commands / CLI 命令
 
-```powershell
-$env:ACOMMONS_API_URL="http://127.0.0.1:8787"
-$env:ACOMMONS_API_TOKEN="<your-jwt>"
-acommons sync
-```
-
-## Web Pages
-
-- `/`: home + install guide
-- `/cli-commands`: CLI command reference
-- `/login`: Google OAuth + Email Magic Link
-- `/auth/callback`: auth callback landing
-- `/onboarding/profile`: first-login handle/profile setup
-- `/onboarding/privacy`: first-login privacy selection
-- `/leaderboard`: ranking tabs (`24h`, `7d`, `all`)
-- `/privacy`: privacy summary
-- `/terms`: terms and conditions
-- `/changelog`: release timeline
-- `/u/:handle`: public profile page
-- `/me`: personal profile page
-
-## Test and Verification
+Core:
 
 ```bash
-npm run test
-npm run typecheck
-npm run build
+acommons setup
+acommons doctor
+acommons sync
 ```
 
-## Privacy Boundary
+Optional:
 
-Allowed upload fields only:
+```bash
+acommons stats
+acommons daily
+acommons models
+acommons total
+acommons report
+acommons watch
+acommons link
+acommons update
+```
 
-- `date`, `source`, `model`
-- `input_uncached`, `output`, `cached_read`, `cached_write`, `total_io`
+## Local Development / 本地开发
 
-Never uploaded:
+Install dependencies:
 
-- prompts/messages
-- transcript `message.content` / thinking blocks
-- file paths/repo names
-- raw session logs
+```bash
+npm install
+```
 
-## Deploy to Cloudflare
+Run API:
 
-API Worker:
+```bash
+npm run dev:api
+```
+
+Run Web:
+
+```powershell
+$env:VITE_API_BASE="http://127.0.0.1:8787"
+$env:VITE_SUPABASE_URL="https://<your-project>.supabase.co"
+$env:VITE_SUPABASE_ANON_KEY="<your-anon-key>"
+npm run dev:web
+```
+
+Validation:
+
+```bash
+npm run build:cli
+npm run test -w @agentic-commons/api
+npm run build -w @agentic-commons/web
+```
+
+## Deployment / 部署
+
+Deploy API:
 
 ```bash
 npm run deploy:api
 ```
 
-Initialize Supabase tables once (run in Supabase SQL Editor):
-
-```sql
--- paste and run:
--- supabase/migrations/20260218_init_core_tables.sql
-```
-
-Set API secrets:
-
-```bash
-npx wrangler secret put SUPABASE_URL --config apps/api/wrangler.toml
-npx wrangler secret put SUPABASE_ANON_KEY --config apps/api/wrangler.toml
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config apps/api/wrangler.toml
-npx wrangler secret put API_TOKEN_PEPPER --config apps/api/wrangler.toml
-npx wrangler secret put MAINTENANCE_TOKEN --config apps/api/wrangler.toml
-npm run deploy:api
-```
-
-Web Pages:
-
-1. One-time setup local production env file:
-
-```powershell
-Copy-Item apps/web/.env.production.example apps/web/.env.production.local
-```
-
-Then edit `apps/web/.env.production.local`:
-
-```env
-VITE_API_BASE=https://agentic-commons-api.phlegonlabs.workers.dev
-VITE_SUPABASE_URL=https://<your-project>.supabase.co
-VITE_SUPABASE_ANON_KEY=<your-anon-key>
-```
-
-2. Create Pages project once (if not created yet):
-
-```bash
-npx wrangler pages project create agentic-commons-web --production-branch main
-```
-
-3. Deploy web:
+Deploy Web:
 
 ```bash
 npm run deploy:web
 ```
 
-Deploy both API + web:
+Deploy all:
 
 ```bash
 npm run deploy:all
 ```
 
-## Publish to npm
+Supabase migrations are in:
 
-```bash
-npm login
-npm whoami
-npm run build
-npm pack --dry-run
-npm publish --access public
+```text
+supabase/migrations/*.sql
 ```
 
-## CLI Device Linking
+## Security and Secrets / 安全与密钥
 
-- `acommons setup` now attempts device linking in-browser before first cloud sync.
-- `acommons setup` now runs a post-setup self-check (`acommons doctor`) automatically.
-- `acommons setup` automatically migrates legacy Claude `hooks.Stop` command entries to matcher-based format and repairs malformed Stop entries where `hooks` is missing/invalid.
-- `acommons log` (called by Claude Stop hook) now prefers realtime token aggregation from hook `transcript_path` usage and uploads cumulative daily totals without reading/storing message content.
-- After a device is linked once, uploads use a locally stored device token (Windows stores it with DPAPI encryption at rest); continuous web login is not required.
-- Multiple devices can be linked to the same account; each device can upload independently.
-- `acommons sync` uses Claude realtime ledger totals when available and falls back to `stats-cache` aggregates otherwise.
-- `acommons sync` uses Codex realtime ledger totals when available and falls back to `.codex/sessions` aggregation otherwise.
-- `acommons watch` tails `.codex/sessions`, updates `~/.agentic-commons/codex-ledger.json`, and uploads pending Codex daily totals in near realtime (10s debounce batches).
-- `acommons sync` falls back to interactive device linking when no API token is found.
-- `acommons link` can be used anytime to force a re-link.
-- `acommons sync` checks npm once per day and auto-updates to latest by default.
-- `acommons update` can be used for manual upgrade on demand.
-- API stores `usage_daily` for recent windows and maintains `usage_all_time` aggregates for all-time leaderboard/profile totals.
-- API defaults `/v1/me/usage` to last 30 days when `from/to` are omitted.
-- API runs daily cleanup of `usage_daily` rows older than `USAGE_DAILY_RETENTION_DAYS` (default 90) via Worker cron trigger.
+Never commit real secrets.  
+不要将真实密钥提交到仓库。
 
-For local dev-only header auth fallback, set:
+Examples only:
 
-```powershell
-$env:ACOMMONS_ALLOW_DEV_HEADER_AUTH="true"
-$env:ACOMMONS_USER_ID="demo-user"
-```
+- `.env.example`
+- `.env.production.example`
 
-For local API development (instead of production API base), set:
+Production secrets must be managed via secret managers (Cloudflare/Supabase/GitHub).  
+生产密钥必须放在 secret manager，不可入库。
 
-```powershell
-$env:ACOMMONS_LOCAL_API="true"
-```
+See:
 
-To disable auto-update:
+- `SECURITY.md`
+- `docs/oss/PRIVATE_VS_PUBLIC_BOUNDARY.md`
 
-```powershell
-$env:ACOMMONS_AUTO_UPDATE="false"
-```
+## Web Routes / Web 页面
 
+- `/`: home
+- `/leaderboard`: leaderboard
+- `/login`: login
+- `/cli-commands`: CLI command reference
+- `/privacy`: privacy summary
+- `/terms`: terms
+- `/changelog`: changelog
+- `/me`: personal profile
+- `/u/:handle`: public profile
+
+## Contributing / 贡献
+
+Please read `CONTRIBUTING.md` before opening issues or PRs.  
+提交 Issue 或 PR 前请先阅读 `CONTRIBUTING.md`。
+
+## Support / 支持
+
+- Usage questions: GitHub Issues
+- Feature requests: GitHub Issues
+- Security reports: GitHub Security Advisories (private)
+- Maintenance policy: best-effort, no SLA
+
+See `SUPPORT.md` for details.
+
+## License / 许可证
+
+MIT. See `LICENSE`.
