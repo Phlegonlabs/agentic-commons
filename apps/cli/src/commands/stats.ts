@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import { readClaudeStats } from '../sources/claude.js'
 import { readCodexSessions } from '../sources/codex.js'
+import { readOpenCodeStats } from '../sources/opencode.js'
+import { readGeminiStats } from '../sources/gemini.js'
 import { printHeader, printTable, fmtNum } from '../format.js'
 import { codexIOTokens } from '../token-metrics.js'
 
@@ -10,6 +12,8 @@ export async function statsCommand(): Promise<void> {
     readClaudeStats(),
     readCodexSessions(),
   ])
+  const opencode = readOpenCodeStats()
+  const gemini = readGeminiStats()
 
   printHeader(`Agentic Commons - Today (${today})`)
 
@@ -21,6 +25,9 @@ export async function statsCommand(): Promise<void> {
 
   const todayCodex = codexSessions.filter(s => s.date === today)
   const codexTotal = todayCodex.reduce((sum, s) => sum + codexIOTokens(s.totalTokens), 0)
+
+  const ocToday = opencode?.daily.find(d => d.date === today)
+  const ocTotal = ocToday ? ocToday.inputUncached + ocToday.output : 0
 
   const rows: string[][] = []
 
@@ -44,15 +51,37 @@ export async function statsCommand(): Promise<void> {
     ])
   }
 
+  if (ocToday) {
+    rows.push([
+      chalk.magenta('OpenCode'),
+      fmtNum(ocToday.sessions),
+      fmtNum(ocToday.messages),
+      fmtNum(ocTotal),
+      '--',
+    ])
+  }
+
+  const gmToday = gemini?.daily.find(d => d.date === today)
+  const gmTotal = gmToday ? gmToday.inputUncached + gmToday.output : 0
+  if (gmToday) {
+    rows.push([
+      chalk.green('Gemini'),
+      fmtNum(gmToday.sessions),
+      fmtNum(gmToday.messages),
+      fmtNum(gmTotal),
+      '--',
+    ])
+  }
+
   if (rows.length === 0) {
     console.log('  No data for today.')
     return
   }
 
-  const grandTotal = claudeTotal + codexTotal
+  const grandTotal = claudeTotal + codexTotal + ocTotal + gmTotal
   rows.push([
     chalk.bold('Total'),
-    fmtNum((claudeDaily?.sessionCount ?? 0) + todayCodex.length),
+    fmtNum((claudeDaily?.sessionCount ?? 0) + todayCodex.length + (ocToday?.sessions ?? 0) + (gmToday?.sessions ?? 0)),
     '',
     chalk.bold(fmtNum(grandTotal)),
     '',

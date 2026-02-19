@@ -19,17 +19,11 @@ import {
   sessionIdFromHook,
   transcriptPathFromHook,
 } from '../sources/claude-transcript.js'
+import type { UsageDaily } from '@agentic-commons/shared'
 
-type CloudUsagePayload = {
-  date: string
-  source: 'claude'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}
+const CLAUDE_PROVIDER = 'anthropic'
+
+type ClaudePayload = UsageDaily & { source: 'claude'; provider: typeof CLAUDE_PROVIDER }
 
 type UploadResult = {
   uploaded: number
@@ -39,7 +33,7 @@ type UploadResult = {
 }
 
 type RealtimeAggregation = {
-  payloads: CloudUsagePayload[]
+  payloads: ClaudePayload[]
   newRows: number
   usedTranscript: boolean
 }
@@ -89,7 +83,7 @@ async function resolveCloudAuthNonInteractive(): Promise<{ apiBase: string | nul
   }
 }
 
-async function uploadClaudePayloads(payloads: CloudUsagePayload[]): Promise<UploadResult> {
+async function uploadClaudePayloads(payloads: ClaudePayload[]): Promise<UploadResult> {
   const filteredPayloads = payloads
     .filter(payload => Number.isFinite(payload.total_io) && payload.total_io > 0)
 
@@ -134,12 +128,13 @@ async function uploadClaudePayloads(payloads: CloudUsagePayload[]): Promise<Uplo
   return { uploaded, total: filteredPayloads.length, skippedReason: null, hasFailures: uploaded < filteredPayloads.length }
 }
 
-function payloadsFromStatsCache(today: string, tokensByModel: Record<string, number>): CloudUsagePayload[] {
+function payloadsFromStatsCache(today: string, tokensByModel: Record<string, number>): ClaudePayload[] {
   return Object.entries(tokensByModel)
     .filter((entry) => Number.isFinite(entry[1]) && entry[1] > 0)
     .map(([model, total]) => ({
       date: today,
       source: 'claude',
+      provider: CLAUDE_PROVIDER,
       model,
       input_uncached: total,
       output: 0,
@@ -184,6 +179,7 @@ async function collectRealtimePayloadsFromHook(): Promise<RealtimeAggregation> {
     payloads: listDailyPayloadsFromLedger(ledger, touchedKeys).map(payload => ({
       ...payload,
       source: 'claude',
+      provider: CLAUDE_PROVIDER,
     })),
     newRows: incremental.newRows.length,
     usedTranscript: true,
@@ -228,4 +224,3 @@ export async function logCommand(): Promise<void> {
     console.log('  [acommons] partial upload failure: run `acommons sync` to retry')
   }
 }
-

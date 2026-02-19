@@ -1,6 +1,4 @@
-// === Tool sources ===
-
-type ToolSource = 'claude' | 'codex'
+import type { ToolSource } from '@agentic-commons/shared'
 
 // === Claude stats-cache.json structures ===
 
@@ -136,6 +134,7 @@ type CodexSessionData = {
   date: string
   timestamp: string
   model?: string
+  provider?: string
   totalTokens: CodexTokenUsage
   rateLimits: CodexTokenEvent['payload']['rate_limits'] | null
 }
@@ -166,6 +165,29 @@ type SetupConfig = {
   lastAutoUpdateVersion?: string
 }
 
+// === Probe types ===
+
+type ToolProbeStatus = 'detected' | 'not_found'
+
+type ToolProbeResult = {
+  name: string
+  slug: string
+  status: ToolProbeStatus
+  installDir: string | null
+  configFound: boolean
+  binaryOnPath: boolean
+  provider: string
+  apiKeyEnvVar: string | null
+  apiKeyStatus: 'set' | 'not_set' | 'n/a'
+  apiKeyMasked: string | null
+  model: string | null
+}
+
+type UnknownToolHint = {
+  dir: string
+  signal: string
+}
+
 export type {
   ToolSource,
   ClaudeDailyActivity,
@@ -183,4 +205,7 @@ export type {
   CodexSessionData,
   UsageStore,
   SetupConfig,
+  ToolProbeStatus,
+  ToolProbeResult,
+  UnknownToolHint,
 }

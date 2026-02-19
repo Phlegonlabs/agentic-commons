@@ -2,27 +2,12 @@ import { randomBytes } from 'node:crypto'
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { arch, cpus, hostname, platform, release, totalmem } from 'node:os'
 import { acDeviceSecretPath, acDir } from './paths.js'
+import type { DeviceIdentityPayload, DeviceProfilePayload } from '@agentic-commons/shared'
 
 const DEVICE_SECRET_DIR_MODE = 0o700
 const DEVICE_SECRET_FILE_MODE = 0o600
 const DEVICE_SECRET_HEX_LENGTH = 64
 const MAX_DEVICE_LABEL_LENGTH = 128
-
-type DeviceProfilePayload = {
-  hostname: string
-  platform: string
-  arch: string
-  osVersion: string
-  cpuBucket: string
-  memoryBucket: string
-  signals: string[]
-}
-
-type DeviceIdentityPayload = {
-  device_secret: string
-  device_label: string
-  device_profile: DeviceProfilePayload
-}
 
 function cpuCoreBucket(coreCount: number): string {
   if (!Number.isFinite(coreCount) || coreCount <= 0) {

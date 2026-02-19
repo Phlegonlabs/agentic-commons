@@ -2,6 +2,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fromCodexUsage } from '../token-metrics.js'
 import type { CodexSessionData } from '../types.js'
 import { acCodexLedgerPath, acDir } from './paths.js'
+import type { UsageDaily } from '@agentic-commons/shared'
+
+const CODEX_DEFAULT_PROVIDER = 'openai'
+const UNKNOWN_PROVIDER = 'unknown'
 
 type LedgerUsageTotals = {
   inputUncached: number
@@ -13,6 +17,7 @@ type LedgerUsageTotals = {
 
 type CodexSessionCursor = {
   date: string
+  provider: string
   model: string
   timestamp: string
   inputUncached: number
@@ -82,8 +87,64 @@ function normalizeTotals(value: unknown): LedgerUsageTotals {
   }
 }
 
-function keyFor(date: string, model: string): string {
-  return `${date}|${model}`
+function normalizeProvider(provider: string | null | undefined): string {
+  if (!provider) {
+    return CODEX_DEFAULT_PROVIDER
+  }
+  const trimmed = provider.trim().toLowerCase()
+  return trimmed.length > 0 ? trimmed : CODEX_DEFAULT_PROVIDER
+}
+
+function modelKeyFor(provider: string, model: string): string {
+  return JSON.stringify([provider, model])
+}
+
+function readProviderModelFromKey(key: string): { provider: string; model: string } {
+  try {
+    const parsed = JSON.parse(key) as unknown
+    if (Array.isArray(parsed) && parsed.length === 2 && typeof parsed[0] === 'string' && typeof parsed[1] === 'string') {
+      const provider = normalizeProvider(parsed[0])
+      const model = parsed[1].trim()
+      if (model.length > 0) {
+        return { provider, model }
+      }
+    }
+  } catch {
+    // Legacy key path falls through.
+  }
+  return { provider: UNKNOWN_PROVIDER, model: key }
+}
+
+function keyFor(date: string, provider: string, model: string): string {
+  return `${date}|${provider}|${model}`
+}
+
+function readDateProviderModelFromKey(key: string): { date: string; provider: string; model: string } | null {
+  const parts = key.split('|')
+  if (parts.length === 2) {
+    const [date, model] = parts
+    if (!date || !model) {
+      return null
+    }
+    return {
+      date,
+      provider: UNKNOWN_PROVIDER,
+      model,
+    }
+  }
+  if (parts.length < 3) {
+    return null
+  }
+  const [date, provider, ...modelParts] = parts
+  const model = modelParts.join('|')
+  if (!date || !provider || !model) {
+    return null
+  }
+  return {
+    date,
+    provider: normalizeProvider(provider),
+    model,
+  }
 }
 
 function addPendingKey(ledger: CodexRealtimeLedger, key: string): void {
@@ -97,12 +158,17 @@ function normalizeSessionCursor(value: unknown): CodexSessionCursor | null {
     return null
   }
 
-  if (typeof value.date !== 'string' || typeof value.model !== 'string' || typeof value.timestamp !== 'string') {
+  if (
+    typeof value.date !== 'string'
+    || typeof value.model !== 'string'
+    || typeof value.timestamp !== 'string'
+  ) {
     return null
   }
 
   return {
     date: value.date,
+    provider: normalizeProvider(typeof value.provider === 'string' ? value.provider : CODEX_DEFAULT_PROVIDER),
     model: value.model,
     timestamp: value.timestamp,
     inputUncached: toNonNegativeInt(value.inputUncached),
@@ -111,6 +177,33 @@ function normalizeSessionCursor(value: unknown): CodexSessionCursor | null {
     cachedWrite: toNonNegativeInt(value.cachedWrite),
     totalIO: toNonNegativeInt(value.totalIO),
     updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : '',
+  }
+}
+
+function isJsonArrayKey(key: string): boolean {
+  return key.startsWith('[')
+}
+
+function migrateLegacyLedgerKeys(ledger: CodexRealtimeLedger): void {
+  for (const [date, byModel] of Object.entries(ledger.dailyByModel)) {
+    for (const key of Object.keys(byModel)) {
+      if (isJsonArrayKey(key)) {
+        continue
+      }
+      const newKey = modelKeyFor(CODEX_DEFAULT_PROVIDER, key)
+      if (newKey in byModel) {
+        delete byModel[key]
+      } else {
+        byModel[newKey] = byModel[key]
+        delete byModel[key]
+      }
+    }
+  }
+
+  for (const cursor of Object.values(ledger.sessions)) {
+    if (!cursor.provider || cursor.provider === UNKNOWN_PROVIDER) {
+      cursor.provider = CODEX_DEFAULT_PROVIDER
+    }
   }
 }
 
@@ -130,8 +223,8 @@ async function readCodexLedger(): Promise<CodexRealtimeLedger> {
         }
 
         dailyByModel[date] = {}
-        for (const [model, totalsRaw] of Object.entries(modelsRaw)) {
-          dailyByModel[date][model] = normalizeTotals(totalsRaw)
+        for (const [providerModelKey, totalsRaw] of Object.entries(modelsRaw)) {
+          dailyByModel[date][providerModelKey] = normalizeTotals(totalsRaw)
         }
       }
     }
@@ -151,12 +244,14 @@ async function readCodexLedger(): Promise<CodexRealtimeLedger> {
       ? parsed.pendingKeys.filter((entry): entry is string => typeof entry === 'string')
       : []
 
-    return {
+    const ledger: CodexRealtimeLedger = {
       version: 1,
       dailyByModel,
       sessions,
       pendingKeys,
     }
+    migrateLegacyLedgerKeys(ledger)
+    return ledger
   } catch {
     return { ...EMPTY_LEDGER }
   }
@@ -176,9 +271,13 @@ function applyCodexSessionsToLedger(
   const sorted = [...sessions].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
 
   for (const session of sorted) {
+    const provider = normalizeProvider(session.provider)
     const model = modelOverride ?? session.model ?? 'gpt-5'
     const current = fromCodexUsage(session.totalTokens)
-    const previous = ledger.sessions[session.sessionId]
+    const previousCursor = ledger.sessions[session.sessionId]
+    const previous = previousCursor?.model === model && previousCursor.provider === provider
+      ? previousCursor
+      : undefined
 
     const deltaInput = previous ? Math.max(0, current.inputUncached - previous.inputUncached) : current.inputUncached
     const deltaOutput = previous ? Math.max(0, current.output - previous.output) : current.output
@@ -189,8 +288,9 @@ function applyCodexSessionsToLedger(
     if (deltaTotalIO > 0 || deltaCachedRead > 0 || deltaCachedWrite > 0) {
       const byDate = ledger.dailyByModel[session.date] ?? {}
       ledger.dailyByModel[session.date] = byDate
-      const totals = byDate[model] ?? cloneEmptyTotals()
-      byDate[model] = totals
+      const providerModelKey = modelKeyFor(provider, model)
+      const totals = byDate[providerModelKey] ?? cloneEmptyTotals()
+      byDate[providerModelKey] = totals
 
       totals.inputUncached += deltaInput
       totals.output += deltaOutput
@@ -198,13 +298,14 @@ function applyCodexSessionsToLedger(
       totals.cachedWrite += deltaCachedWrite
       totals.totalIO = totals.inputUncached + totals.output
 
-      const key = keyFor(session.date, model)
+      const key = keyFor(session.date, provider, model)
       touched.add(key)
       addPendingKey(ledger, key)
     }
 
     ledger.sessions[session.sessionId] = {
       date: session.date,
+      provider,
       model,
       timestamp: session.timestamp,
       inputUncached: current.inputUncached,
@@ -222,34 +323,17 @@ function applyCodexSessionsToLedger(
 function listDailyPayloadsFromCodexLedger(
   ledger: CodexRealtimeLedger,
   keys: string[],
-): Array<{
-  date: string
-  source: 'codex'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}> {
-  const payloads: Array<{
-    date: string
-    source: 'codex'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }> = []
+): (UsageDaily & { source: 'codex'; provider: string })[] {
+  const payloads: (UsageDaily & { source: 'codex'; provider: string })[] = []
 
   for (const key of keys) {
-    const [date, model] = key.split('|')
-    if (!date || !model) {
+    const decodedKey = readDateProviderModelFromKey(key)
+    if (!decodedKey) {
       continue
     }
+    const { date, provider, model } = decodedKey
 
-    const totals = ledger.dailyByModel[date]?.[model]
+    const totals = ledger.dailyByModel[date]?.[modelKeyFor(provider, model)]
     if (!totals) {
       continue
     }
@@ -257,6 +341,7 @@ function listDailyPayloadsFromCodexLedger(
     payloads.push({
       date,
       source: 'codex',
+      provider,
       model,
       input_uncached: totals.inputUncached,
       output: totals.output,
@@ -271,32 +356,16 @@ function listDailyPayloadsFromCodexLedger(
 
 function listAllCodexPayloadsFromLedger(
   ledger: CodexRealtimeLedger,
-): Array<{
-  date: string
-  source: 'codex'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}> {
-  const payloads: Array<{
-    date: string
-    source: 'codex'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }> = []
+): (UsageDaily & { source: 'codex'; provider: string })[] {
+  const payloads: (UsageDaily & { source: 'codex'; provider: string })[] = []
 
   for (const [date, byModel] of Object.entries(ledger.dailyByModel)) {
-    for (const [model, totals] of Object.entries(byModel)) {
+    for (const [providerModelKey, totals] of Object.entries(byModel)) {
+      const { provider, model } = readProviderModelFromKey(providerModelKey)
       payloads.push({
         date,
         source: 'codex',
+        provider,
         model,
         input_uncached: totals.inputUncached,
         output: totals.output,
@@ -312,22 +381,10 @@ function listAllCodexPayloadsFromLedger(
 
 function listPendingCodexPayloadsFromLedger(
   ledger: CodexRealtimeLedger,
-): Array<{
-  key: string
-  payload: {
-    date: string
-    source: 'codex'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }
-}> {
+): Array<{ key: string; payload: UsageDaily & { source: 'codex'; provider: string } }> {
   const payloads = listDailyPayloadsFromCodexLedger(ledger, ledger.pendingKeys)
   return payloads.map(payload => ({
-    key: keyFor(payload.date, payload.model),
+    key: keyFor(payload.date, payload.provider, payload.model),
     payload,
   }))
 }

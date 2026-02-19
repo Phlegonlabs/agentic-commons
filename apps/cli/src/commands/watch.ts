@@ -15,23 +15,15 @@ import { readConfig, writeConfig } from '../sources/config.js'
 import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
 import { readDeviceIdentityPayload } from '../sources/device-identity.js'
 import { readApiBase } from './link-shared.js'
+import type { UsageDaily } from '@agentic-commons/shared'
 
 const WATCH_DEBOUNCE_MS = 10_000
 
-type CloudUsagePayload = {
-  date: string
-  source: 'codex'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}
+type CodexPayload = UsageDaily & { source: 'codex'; provider: string }
 
 type PendingUpload = {
   key: string
-  payload: CloudUsagePayload
+  payload: CodexPayload
 }
 
 type UploadResult = {

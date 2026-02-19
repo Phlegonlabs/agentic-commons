@@ -6,13 +6,16 @@ import chalk from 'chalk'
 import { printHeader } from '../format.js'
 import { readConfig, writeConfig } from '../sources/config.js'
 import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
+import { readExternalUsageDiagnostics } from '../sources/external-usage.js'
 import {
   acClaudeLedgerPath,
   acCodexLedgerPath,
   acConfigPath,
+  acExternalUsageDir,
   acUsagePath,
   claudeStatsPath,
   codexSessionsDir,
+  openCodeDir,
 } from '../sources/paths.js'
 import { readApiBase } from './link-shared.js'
 
@@ -147,6 +150,7 @@ export async function doctorCommand(): Promise<void> {
   }
   const autoUpdateEnabledByEnv = process.env['ACOMMONS_AUTO_UPDATE'] !== 'false'
   const autoUpdateEnabled = autoUpdateEnabledByEnv && config.autoUpdateEnabled !== false
+  const externalUsage = await readExternalUsageDiagnostics()
 
   console.log('  Local')
   console.log(`  ${statusMark(existsSync(acConfigPath))} Config file: ${acConfigPath}`)
@@ -155,6 +159,9 @@ export async function doctorCommand(): Promise<void> {
   console.log(`  ${statusMark(existsSync(acCodexLedgerPath))} Codex realtime ledger: ${acCodexLedgerPath}`)
   console.log(`  ${statusMark(existsSync(claudeStatsPath))} Claude stats source: ${claudeStatsPath}`)
   console.log(`  ${statusMark(existsSync(codexSessionsDir))} Codex sessions source: ${codexSessionsDir}`)
+  console.log(`  ${statusMark(externalUsage.externalDirExists)} External usage dropbox: ${acExternalUsageDir} (${externalUsage.externalCandidateFiles} jsonl/ndjson files)`)
+  console.log(`  ${statusMark(externalUsage.openCodeDirExists)} OpenCode dir: ${openCodeDir} (${externalUsage.openCodeJsonlFiles} candidate jsonl files)`)
+  console.log(`  ${statusMark(externalUsage.parsedPayloadRows > 0)} External parsed rows: ${externalUsage.parsedPayloadRows}`)
   console.log(`  ${statusMark(config.schedulerInstalled)} Scheduler: ${config.schedulerInstalled ? (config.schedulerType ?? 'enabled') : 'not installed'}`)
   if (platform() === 'darwin') {
     const plistPath = macLaunchAgentPlistPath()

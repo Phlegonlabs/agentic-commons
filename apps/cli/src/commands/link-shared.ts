@@ -5,23 +5,11 @@ import chalk from 'chalk'
 import { readConfig, writeConfig } from '../sources/config.js'
 import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
 import { readDeviceIdentityPayload } from '../sources/device-identity.js'
+import type { DeviceStartResponse, DevicePollResponse } from '@agentic-commons/shared'
 
 const execAsync = promisify(exec)
 const DEFAULT_API_BASE = 'https://api.agenticcommons.xyz'
 const LOCAL_DEV_API_BASE = 'http://127.0.0.1:8787'
-
-type DeviceStartResponse = {
-  device_code: string
-  user_code: string
-  verification_uri: string
-  verification_uri_complete: string
-  expires_in: number
-  interval: number
-}
-
-type DevicePollResponse =
-  | { status: 'authorization_pending' }
-  | { status: 'authorized'; access_token: string; user_id: string }
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))

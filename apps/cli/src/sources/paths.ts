@@ -1,4 +1,4 @@
-import { homedir } from 'node:os'
+import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
 
 const home = homedir()
@@ -14,4 +14,10 @@ export const acReportPath = join(acDir, 'report.html')
 export const acConfigPath = join(acDir, 'config.json')
 export const acApiTokenPath = join(acDir, 'api-token.secret')
 export const acDeviceSecretPath = join(acDir, 'device-secret.key')
+export const acExternalUsageDir = join(acDir, 'external-usage')
+export const openCodeDir = platform() === 'win32'
+  ? join(home, 'AppData', 'Roaming', 'opencode')
+  : join(home, '.opencode')
+export const openCodeDbPath = join(home, '.local', 'share', 'opencode', 'opencode.db')
+export const geminiTmpDir = join(home, '.gemini', 'tmp')
 

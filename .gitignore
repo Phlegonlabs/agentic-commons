@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 dist/
 apps/**/dist/
+packages/shared/dist/
 *.tsbuildinfo
 coverage/
 
@@ -16,9 +17,6 @@ TASKS.md
 PROGRESS.md
 plans/
 SECURITY-AUDIT-*.md
-apps/api/
-apps/web/
-supabase/
 
 # Logs
 *.log
