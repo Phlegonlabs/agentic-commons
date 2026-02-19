@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+apps/**/dist/
+*.tsbuildinfo
+coverage/
+
+# Package/test artifacts
+*.tgz
+.tmp-*/
+.tmp-*
+nul
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Local env files (keep examples only)
+.env
+.env.*
+!.env.example
+!.env.production.example
+apps/web/.env.production.local
+
+# Cloudflare local state
+.wrangler/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
