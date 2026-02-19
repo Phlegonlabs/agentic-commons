@@ -3,6 +3,8 @@ import { acClaudeLedgerPath, acDir } from './paths.js'
 import type { TranscriptUsageRow } from './claude-transcript.js'
 import type { UsageDailyBase, UsageDaily } from '@agentic-commons/shared'
 
+const CLAUDE_PROVIDER = 'anthropic'
+
 type LedgerUsageTotals = {
   inputUncached: number
   output: number
@@ -228,14 +230,15 @@ function listDailyPayloadsFromLedger(
 
 function listAllClaudePayloadsFromLedger(
   ledger: ClaudeRealtimeLedger,
-): (UsageDaily & { source: 'claude' })[] {
-  const payloads: (UsageDaily & { source: 'claude' })[] = []
+): (UsageDaily & { source: 'claude'; provider: string })[] {
+  const payloads: (UsageDaily & { source: 'claude'; provider: string })[] = []
 
   for (const [date, byModel] of Object.entries(ledger.dailyByModel)) {
     for (const [model, totals] of Object.entries(byModel)) {
       payloads.push({
         date,
         source: 'claude',
+        provider: CLAUDE_PROVIDER,
         model,
         input_uncached: totals.inputUncached,
         output: totals.output,

@@ -19,7 +19,7 @@ import type { UsageDaily } from '@agentic-commons/shared'
 
 const WATCH_DEBOUNCE_MS = 10_000
 
-type CodexPayload = UsageDaily & { source: 'codex' }
+type CodexPayload = UsageDaily & { source: 'codex'; provider: string }
 
 type PendingUpload = {
   key: string

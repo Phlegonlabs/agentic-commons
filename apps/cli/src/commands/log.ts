@@ -21,7 +21,9 @@ import {
 } from '../sources/claude-transcript.js'
 import type { UsageDaily } from '@agentic-commons/shared'
 
-type ClaudePayload = UsageDaily & { source: 'claude' }
+const CLAUDE_PROVIDER = 'anthropic'
+
+type ClaudePayload = UsageDaily & { source: 'claude'; provider: typeof CLAUDE_PROVIDER }
 
 type UploadResult = {
   uploaded: number
@@ -132,6 +134,7 @@ function payloadsFromStatsCache(today: string, tokensByModel: Record<string, num
     .map(([model, total]) => ({
       date: today,
       source: 'claude',
+      provider: CLAUDE_PROVIDER,
       model,
       input_uncached: total,
       output: 0,
@@ -176,6 +179,7 @@ async function collectRealtimePayloadsFromHook(): Promise<RealtimeAggregation> {
     payloads: listDailyPayloadsFromLedger(ledger, touchedKeys).map(payload => ({
       ...payload,
       source: 'claude',
+      provider: CLAUDE_PROVIDER,
     })),
     newRows: incremental.newRows.length,
     usedTranscript: true,
@@ -220,4 +224,3 @@ export async function logCommand(): Promise<void> {
     console.log('  [acommons] partial upload failure: run `acommons sync` to retry')
   }
 }
-

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { geminiTmpDir } from './paths.js'
 import type { TokenBreakdown } from '../token-metrics.js'
@@ -46,13 +46,18 @@ type GeminiStats = {
   totalSessions: number
 }
 
+function isRealDir(p: string): boolean {
+  try { return lstatSync(p).isDirectory() } catch { return false }
+}
+
 function findSessionFiles(): string[] {
-  if (!existsSync(geminiTmpDir)) return []
+  if (!isRealDir(geminiTmpDir)) return []
   const files: string[] = []
   try {
-    for (const projectHash of readdirSync(geminiTmpDir)) {
-      const chatsDir = join(geminiTmpDir, projectHash, 'chats')
-      if (!existsSync(chatsDir)) continue
+    for (const entry of readdirSync(geminiTmpDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue
+      const chatsDir = join(geminiTmpDir, entry.name, 'chats')
+      if (!isRealDir(chatsDir)) continue
       for (const file of readdirSync(chatsDir)) {
         if (file.startsWith('session-') && file.endsWith('.json')) {
           files.push(join(chatsDir, file))

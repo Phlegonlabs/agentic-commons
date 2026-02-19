@@ -6,6 +6,7 @@ import type { CodexSessionData, CodexSessionMeta, CodexTokenEvent } from '../typ
 const TAIL_CHUNK = 8 * 1024
 const TAIL_FALLBACK = 64 * 1024
 const HEAD_CHUNK = 16 * 1024
+const DEFAULT_CODEX_PROVIDER = 'openai'
 
 async function readTail(filePath: string, bytes: number): Promise<string> {
   const fh = await open(filePath, 'r')
@@ -55,6 +56,14 @@ function parseSessionMeta(text: string): CodexSessionMeta | null {
     }
   } catch { /* skip */ }
   return null
+}
+
+function normalizeProvider(provider: string | null | undefined): string {
+  if (!provider) {
+    return DEFAULT_CODEX_PROVIDER
+  }
+  const trimmed = provider.trim().toLowerCase()
+  return trimmed.length > 0 ? trimmed : DEFAULT_CODEX_PROVIDER
 }
 
 function readTurnContextModel(line: string): string | null {
@@ -127,6 +136,7 @@ async function parseSessionFile(filePath: string): Promise<CodexSessionData | nu
     date: tokenEvent.timestamp.slice(0, 10),
     timestamp: tokenEvent.timestamp,
     model: model ?? 'gpt-5',
+    provider: normalizeProvider(meta?.model_provider),
     totalTokens: tokenEvent.payload.info.total_token_usage,
     rateLimits: tokenEvent.payload.rate_limits,
   }

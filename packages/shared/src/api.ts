@@ -1,4 +1,4 @@
-import type { UsageDaily } from './schema.js'
+﻿import type { UsageDaily } from './schema.js'
 
 type DeviceStartResponse = {
   device_code: string
@@ -29,7 +29,7 @@ type DeviceIdentityPayload = {
   device_profile: DeviceProfilePayload
 }
 
-type UsageDailyBase = Omit<UsageDaily, 'source'>
+type UsageDailyBase = Omit<UsageDaily, 'source' | 'provider'>
 
 export type {
   DeviceIdentityPayload,

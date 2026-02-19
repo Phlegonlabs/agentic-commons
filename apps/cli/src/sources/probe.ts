@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
-import type { ToolProbeResult } from '../types.js'
+import type { ToolProbeResult, UnknownToolHint } from '../types.js'
 
 const home = homedir()
 const isWin = platform() === 'win32'
@@ -81,6 +81,83 @@ const TOOLS: ToolDef[] = [
     provider: 'various', apiKeyEnvVar: 'OPENAI_API_KEY',
     modelReader: null,
   },
+  {
+    name: 'Goose', slug: 'goose',
+    dir: '.config/goose', win32Dir: null,
+    configFile: 'config.yaml', binary: 'goose',
+    provider: 'various', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Amp', slug: 'amp',
+    dir: '.config/amp', win32Dir: null,
+    configFile: null, binary: 'amp',
+    provider: 'sourcegraph', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Crush', slug: 'crush',
+    dir: '.config/crush', win32Dir: null,
+    configFile: null, binary: 'crush',
+    provider: 'various', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Droid', slug: 'droid',
+    dir: '.factory', win32Dir: null,
+    configFile: 'settings.json', binary: 'droid',
+    provider: 'factory', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Kiro', slug: 'kiro',
+    dir: '.kiro', win32Dir: null,
+    configFile: null, binary: 'kiro-cli',
+    provider: 'aws', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Auggie', slug: 'auggie',
+    dir: '.config/auggie', win32Dir: null,
+    configFile: null, binary: 'auggie',
+    provider: 'augment', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Copilot CLI', slug: 'copilot-cli',
+    dir: '.copilot', win32Dir: null,
+    configFile: null, binary: 'copilot',
+    provider: 'github', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Cody', slug: 'cody',
+    dir: '.config/sourcegraph', win32Dir: null,
+    configFile: null, binary: 'cody',
+    provider: 'sourcegraph', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'Qwen-Code', slug: 'qwen-code',
+    dir: '.qwen', win32Dir: null,
+    configFile: 'settings.json', binary: 'qwen-code',
+    provider: 'alibaba', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'KiloCode', slug: 'kilocode',
+    dir: '.config/kilocode', win32Dir: null,
+    configFile: null, binary: 'kilo',
+    provider: 'various', apiKeyEnvVar: null,
+    modelReader: null,
+  },
+  {
+    name: 'AIChat', slug: 'aichat',
+    dir: '.config/aichat', win32Dir: null,
+    configFile: null, binary: 'aichat',
+    provider: 'various', apiKeyEnvVar: null,
+    modelReader: null,
+  },
 ]
 
 function resolveDir(def: ToolDef): string {
@@ -90,8 +167,7 @@ function resolveDir(def: ToolDef): string {
 
 function checkBinary(name: string): boolean {
   try {
-    const cmd = isWin ? `where ${name}` : `which ${name}`
-    execSync(cmd, { stdio: 'pipe' })
+    execFileSync(isWin ? 'where' : 'which', [name], { stdio: 'pipe' })
     return true
   } catch {
     return false
@@ -156,4 +232,43 @@ function probeOne(def: ToolDef): ToolProbeResult {
 
 export function probeAll(): ToolProbeResult[] {
   return TOOLS.map(probeOne)
+}
+
+const AI_SIGNALS = ['mcp.json', 'mcp_config.json', 'AGENTS.md', 'agents', 'skills']
+
+const EXCLUDED_DIRS = new Set([
+  '.git', '.ssh', '.npm', '.cargo', '.rustup', '.docker',
+  '.vscode', '.config/nvim', '.local', '.cache', '.nvm',
+  '.gradle', '.m2', '.gnupg', '.pki', '.dbus',
+  ...TOOLS.map(t => t.dir),
+])
+
+function scanForSignals(dir: string): string | null {
+  for (const sig of AI_SIGNALS) {
+    if (existsSync(join(dir, sig))) return sig
+  }
+  return null
+}
+
+function scanDotdirs(base: string, prefix: string): UnknownToolHint[] {
+  const hints: UnknownToolHint[] = []
+  try {
+    const entries = readdirSync(base, { withFileTypes: true })
+    for (const e of entries) {
+      if (!e.isDirectory()) continue
+      const rel = prefix ? `${prefix}/${e.name}` : e.name
+      if (EXCLUDED_DIRS.has(rel)) continue
+      const signal = scanForSignals(join(base, e.name))
+      if (signal) hints.push({ dir: rel, signal })
+    }
+  } catch {
+    // directory not readable
+  }
+  return hints
+}
+
+export function discoverUnknown(): UnknownToolHint[] {
+  const dotdirs = scanDotdirs(home, '').filter(h => h.dir.startsWith('.'))
+  const configDirs = scanDotdirs(join(home, '.config'), '.config')
+  return [...dotdirs, ...configDirs]
 }

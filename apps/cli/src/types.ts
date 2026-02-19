@@ -183,6 +183,11 @@ type ToolProbeResult = {
   model: string | null
 }
 
+type UnknownToolHint = {
+  dir: string
+  signal: string
+}
+
 export type {
   ToolSource,
   ClaudeDailyActivity,
@@ -202,4 +207,5 @@ export type {
   SetupConfig,
   ToolProbeStatus,
   ToolProbeResult,
+  UnknownToolHint,
 }

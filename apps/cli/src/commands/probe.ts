@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import { printHeader, printTable } from '../format.js'
-import { probeAll } from '../sources/probe.js'
+import { probeAll, discoverUnknown } from '../sources/probe.js'
 
 export async function probeCommand(): Promise<void> {
   const results = probeAll()
@@ -35,5 +35,21 @@ export async function probeCommand(): Promise<void> {
 
   console.log()
   console.log(chalk.dim(`  ${detected.length} detected, ${notFound.length} not found`))
+
+  const unknown = discoverUnknown()
+  if (unknown.length > 0) {
+    console.log()
+    printHeader('Unknown AI Tools (heuristic)')
+    printTable(
+      [
+        { header: 'Directory', width: 20, align: 'left' as const },
+        { header: 'Signal', width: 24, align: 'left' as const },
+      ],
+      unknown.map(h => [h.dir, h.signal]),
+    )
+    console.log()
+    console.log(chalk.dim(`  ${unknown.length} possible AI tools discovered`))
+  }
+
   console.log()
 }
