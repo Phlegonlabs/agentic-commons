@@ -14,6 +14,45 @@ import { doctorCommand } from './doctor.js'
 
 const execAsync = promisify(exec)
 
+function firstNonEmptyLine(text: string): string | null {
+  const lines = text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+  return lines[0] ?? null
+}
+
+async function resolveWindowsAcommonsCmdPath(): Promise<string> {
+  const cmdLookup = await execAsync('where acommons.cmd').catch(() => ({ stdout: '' }))
+  const cmdPath = firstNonEmptyLine(cmdLookup.stdout)
+  if (cmdPath) {
+    return cmdPath
+  }
+
+  const genericLookup = await execAsync('where acommons').catch(() => ({ stdout: '' }))
+  const genericLines = genericLookup.stdout
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+
+  const explicitCmd = genericLines.find(line => line.toLowerCase().endsWith('.cmd'))
+  if (explicitCmd) {
+    return explicitCmd
+  }
+
+  const explicitPs1 = genericLines.find(line => line.toLowerCase().endsWith('.ps1'))
+  if (explicitPs1) {
+    return explicitPs1.replace(/\.ps1$/i, '.cmd')
+  }
+
+  const appData = process.env['APPDATA']
+  if (appData && appData.trim().length > 0) {
+    return `${appData}\\npm\\acommons.cmd`
+  }
+
+  return 'acommons'
+}
+
 async function readJsonFile<T>(path: string): Promise<T | null> {
   try {
     return JSON.parse(await readFile(path, 'utf-8')) as T
@@ -200,7 +239,9 @@ async function installScheduler(): Promise<'schtasks' | 'launchd' | 'crontab' | 
 
   if (os === 'win32') {
     try {
-      await execAsync('schtasks /create /tn "AgenticCommons" /tr "acommons sync" /sc hourly /f')
+      const acommonsCmdPath = await resolveWindowsAcommonsCmdPath()
+      const taskRunCommand = `cmd /c ""${acommonsCmdPath}" sync""`
+      await execAsync(`schtasks /create /tn "AgenticCommons" /tr "${taskRunCommand}" /sc hourly /f`)
       console.log(`  ${chalk.green('+')} Windows scheduled task created`)
       return 'schtasks'
     } catch (e) {
