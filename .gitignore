@@ -12,6 +12,10 @@ coverage/
 .tmp-*/
 .tmp-*
 nul
+TASKS.md
+PROGRESS.md
+plans/
+SECURITY-AUDIT-*.md
 
 # Logs
 *.log
