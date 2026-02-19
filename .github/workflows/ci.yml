@@ -25,8 +25,5 @@ jobs:
       - name: Build CLI
         run: npm run build:cli
 
-      - name: Test API
-        run: npm run test -w @agentic-commons/api
-
-      - name: Build Web
-        run: npm run build -w @agentic-commons/web
+      - name: Typecheck Shared
+        run: npm run typecheck -w @agentic-commons/shared

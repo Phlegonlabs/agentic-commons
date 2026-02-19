@@ -14,8 +14,7 @@ List commands you ran and outcomes.
 ```bash
 # example
 npm run build:cli
-npm run test -w @agentic-commons/api
-npm run build -w @agentic-commons/web
+npm run typecheck -w @agentic-commons/shared
 ```
 
 ## Risk

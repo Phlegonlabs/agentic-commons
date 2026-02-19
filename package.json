@@ -13,27 +13,21 @@
     "url": "https://github.com/Phlegonlabs/agentic-commons.git"
   },
   "workspaces": [
-    "apps/*",
     "packages/*"
   ],
   "files": [
     "apps/cli/dist",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md"
   ],
   "bin": {
     "acommons": "apps/cli/dist/cli.js"
   },
   "scripts": {
-    "build": "tsc && npm run build -w @agentic-commons/shared && npm run build -w @agentic-commons/api && npm run build -w @agentic-commons/web",
+    "build": "npm run build:cli && npm run build -w @agentic-commons/shared",
     "build:cli": "tsc",
-    "dev:api": "npm run start -w @agentic-commons/api",
-    "dev:web": "npm run dev -w @agentic-commons/web",
     "dev": "tsc --watch",
-    "deploy:api": "npx wrangler deploy --config apps/api/wrangler.toml",
-    "deploy:web": "npm run build -w @agentic-commons/web && npx wrangler pages deploy apps/web/dist --project-name agentic-commons-web --branch main --commit-dirty=true",
-    "deploy:all": "npm run deploy:api && npm run deploy:web",
-    "test": "npm run test -w @agentic-commons/api",
-    "typecheck": "npm run build:cli && npm run typecheck -w @agentic-commons/shared && npm run typecheck -w @agentic-commons/api && npm run typecheck -w @agentic-commons/web"
+    "typecheck": "npm run build:cli && npm run typecheck -w @agentic-commons/shared"
   },
   "dependencies": {
     "chalk": "^5.4.1"

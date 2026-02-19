@@ -16,6 +16,9 @@ TASKS.md
 PROGRESS.md
 plans/
 SECURITY-AUDIT-*.md
+apps/api/
+apps/web/
+supabase/
 
 # Logs
 *.log
@@ -27,8 +30,6 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
-!.env.production.example
-apps/web/.env.production.local
 
 # Cloudflare local state
 .wrangler/
