@@ -2,21 +2,7 @@
 
 Agentic Commons is an open-core project for private-by-design AI usage analytics.
 
-English | [Chinese (Simplified)](./README.zh-CN.md)
-
-## Open-Core Scope
-
-Public in this repository:
-
-- `apps/cli`: `acommons` CLI source
-- `packages/shared`: shared schema/types
-- Public docs, contribution guidelines, and security reporting policy
-
-Private (not open-sourced in this repository):
-
-- Hosted API implementation
-- Hosted web application implementation
-- Infrastructure and database migration assets
+English | [Chinese (Simplified)](./README.zh-CN.md) | [Chinese (Traditional)](./README.zh-TW.md)
 
 ## What It Does
 
@@ -24,7 +10,7 @@ Private (not open-sourced in this repository):
 - Syncs to a hosted platform for leaderboard and public profile analytics.
 - Keeps prompts, transcript content, and raw logs on your machine.
 
-The English README is the canonical release reference. The Chinese README mirrors functionality and setup.
+The English README is the canonical release reference. Chinese docs provide localized summaries.
 
 ## Core Principles
 
@@ -108,7 +94,7 @@ acommons link
 acommons update
 ```
 
-## Local Development (Public Repo)
+## Local Development
 
 Install dependencies:
 
@@ -123,10 +109,6 @@ npm run build:cli
 npm run typecheck -w @agentic-commons/shared
 ```
 
-## Hosted Platform Note
-
-The production API/web platform and infrastructure migrations are private internal assets and are not distributed in this repository.
-
 ## Security and Secrets
 
 Never commit real secrets.
@@ -139,7 +121,7 @@ See:
 
 ## Contributing
 
-Please read `CONTRIBUTING.md` before opening issues or PRs.
+Please read `CONTRIBUTING.md` before opening issues.
 
 ## Support
 
