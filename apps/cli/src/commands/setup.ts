@@ -10,6 +10,7 @@ import { syncCommand } from './sync.js'
 import type { SetupConfig } from '../types.js'
 import { readConfig, writeConfig } from '../sources/config.js'
 import { linkDevice } from './link-shared.js'
+import { doctorCommand } from './doctor.js'
 
 const execAsync = promisify(exec)
 
@@ -21,29 +22,176 @@ async function readJsonFile<T>(path: string): Promise<T | null> {
   }
 }
 
+type HookCommand = {
+  type: 'command'
+  command: string
+}
+
+type HookMatcherEntry = {
+  matcher?: unknown
+  hooks: unknown[]
+  [key: string]: unknown
+}
+
+type NormalizeStopHooksResult = {
+  stopEntries: unknown[]
+  migratedLegacyCount: number
+  droppedDuplicateCount: number
+  repairedInvalidEntryCount: number
+  droppedInvalidEntryCount: number
+  hadAcommonsLog: boolean
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isLegacyCommandEntry(value: unknown): value is HookCommand {
+  return isObjectRecord(value)
+    && value.type === 'command'
+    && typeof value.command === 'string'
+}
+
+function isHookConfigEntry(value: unknown): value is { type: string } {
+  return isObjectRecord(value) && typeof value.type === 'string'
+}
+
+function toMatcherEntry(command: string): HookMatcherEntry {
+  return {
+    hooks: [
+      { type: 'command', command },
+    ],
+  }
+}
+
+function normalizeStopHooks(stopRaw: unknown, hookCmd: string): NormalizeStopHooksResult {
+  const source = Array.isArray(stopRaw) ? stopRaw : []
+  const seenCommands = new Set<string>()
+  const stopEntries: unknown[] = []
+  let migratedLegacyCount = 0
+  let droppedDuplicateCount = 0
+  let repairedInvalidEntryCount = 0
+  let droppedInvalidEntryCount = 0
+  let hadAcommonsLog = false
+
+  for (const entry of source) {
+    if (isLegacyCommandEntry(entry)) {
+      const command = entry.command.trim()
+      if (!command) {
+        continue
+      }
+      migratedLegacyCount++
+      if (seenCommands.has(command)) {
+        droppedDuplicateCount++
+        if (command === hookCmd) {
+          hadAcommonsLog = true
+        }
+        continue
+      }
+      seenCommands.add(command)
+      if (command === hookCmd) {
+        hadAcommonsLog = true
+      }
+      stopEntries.push(toMatcherEntry(command))
+      continue
+    }
+
+    if (!isObjectRecord(entry)) {
+      droppedInvalidEntryCount++
+      continue
+    }
+
+    if (Array.isArray(entry.hooks)) {
+      const dedupedHooks: unknown[] = []
+      for (const hook of entry.hooks) {
+        if (isLegacyCommandEntry(hook)) {
+          const command = hook.command.trim()
+          if (!command) {
+            continue
+          }
+          if (seenCommands.has(command)) {
+            droppedDuplicateCount++
+            if (command === hookCmd) {
+              hadAcommonsLog = true
+            }
+            continue
+          }
+          seenCommands.add(command)
+          if (command === hookCmd) {
+            hadAcommonsLog = true
+          }
+          dedupedHooks.push({ type: 'command', command })
+          continue
+        }
+
+        if (isHookConfigEntry(hook)) {
+          dedupedHooks.push(hook)
+          continue
+        }
+        droppedInvalidEntryCount++
+      }
+
+      stopEntries.push({
+        ...entry,
+        hooks: dedupedHooks,
+      })
+      continue
+    }
+
+    repairedInvalidEntryCount++
+    stopEntries.push({
+      ...entry,
+      hooks: [],
+    })
+  }
+
+  if (!hadAcommonsLog) {
+    stopEntries.push(toMatcherEntry(hookCmd))
+  }
+
+  return {
+    stopEntries,
+    migratedLegacyCount,
+    droppedDuplicateCount,
+    repairedInvalidEntryCount,
+    droppedInvalidEntryCount,
+    hadAcommonsLog,
+  }
+}
+
 async function installClaudeHook(): Promise<boolean> {
   type ClaudeSettings = {
-    hooks?: {
-      Stop?: Array<{ type: string; command: string }>
-      [key: string]: unknown
-    }
+    hooks?: Record<string, unknown>
     [key: string]: unknown
   }
 
   const settings = await readJsonFile<ClaudeSettings>(claudeSettingsPath) ?? {}
-  settings.hooks = settings.hooks ?? {}
-  settings.hooks.Stop = settings.hooks.Stop ?? []
+  settings.hooks = isObjectRecord(settings.hooks) ? settings.hooks : {}
 
   const hookCmd = 'acommons log'
-  const already = settings.hooks.Stop.some((h: { command: string }) => h.command === hookCmd)
-  if (already) {
+  const normalized = normalizeStopHooks(settings.hooks['Stop'], hookCmd)
+  settings.hooks['Stop'] = normalized.stopEntries
+
+  await writeFile(claudeSettingsPath, JSON.stringify(settings, null, 2), 'utf-8')
+
+  if (normalized.migratedLegacyCount > 0) {
+    console.log(`  ${chalk.green('+')} Migrated ${normalized.migratedLegacyCount} legacy Claude Stop hook${normalized.migratedLegacyCount === 1 ? '' : 's'} to matcher format`)
+  }
+  if (normalized.droppedDuplicateCount > 0) {
+    console.log(`  ${chalk.green('+')} Removed ${normalized.droppedDuplicateCount} duplicate Claude Stop command hook${normalized.droppedDuplicateCount === 1 ? '' : 's'}`)
+  }
+  if (normalized.repairedInvalidEntryCount > 0) {
+    console.log(`  ${chalk.green('+')} Repaired ${normalized.repairedInvalidEntryCount} invalid Claude Stop hook entr${normalized.repairedInvalidEntryCount === 1 ? 'y' : 'ies'}`)
+  }
+  if (normalized.droppedInvalidEntryCount > 0) {
+    console.log(`  ${chalk.green('+')} Dropped ${normalized.droppedInvalidEntryCount} malformed Claude Stop hook value${normalized.droppedInvalidEntryCount === 1 ? '' : 's'}`)
+  }
+  if (normalized.hadAcommonsLog) {
     console.log(`  ${chalk.dim('Claude hook already installed')}`)
     return true
   }
 
-  settings.hooks.Stop.push({ type: 'command', command: hookCmd })
-  await writeFile(claudeSettingsPath, JSON.stringify(settings, null, 2), 'utf-8')
-  console.log(`  ${chalk.green('+')} Claude Code Stop hook installed`)
+  console.log(`  ${chalk.green('+')} Claude Code Stop hook installed (matcher format)`)
   return true
 }
 
@@ -137,6 +285,10 @@ export async function setupCommand(): Promise<void> {
 
   console.log()
   await syncCommand()
+
+  console.log(`  ${chalk.green('+')} Running post-setup self-check`)
+  console.log()
+  await doctorCommand()
 
   console.log(`  ${chalk.green('Setup complete!')}`)
   console.log()

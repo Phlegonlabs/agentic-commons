@@ -6,6 +6,16 @@ import { fromCodexUsage, emptyBreakdown, addBreakdown } from '../token-metrics.j
 import { readConfig } from '../sources/config.js'
 import { linkDevice, readApiBase } from './link-shared.js'
 import { maybeAutoUpdate } from './auto-update.js'
+import { listAllClaudePayloadsFromLedger, readClaudeLedger } from '../sources/claude-ledger.js'
+import {
+  applyCodexSessionsToLedger,
+  listAllCodexPayloadsFromLedger,
+  markCodexKeysUploaded,
+  readCodexLedger,
+  writeCodexLedger,
+  type CodexRealtimeLedger,
+} from '../sources/codex-ledger.js'
+import type { CodexSessionData } from '../types.js'
 
 type CloudUsagePayload = {
   date: string
@@ -18,12 +28,36 @@ type CloudUsagePayload = {
   total_io: number
 }
 
-function buildCloudPayloads(
-  claude: Awaited<ReturnType<typeof readClaudeStats>>,
-  codexSessions: Awaited<ReturnType<typeof readCodexSessions>>,
-): CloudUsagePayload[] {
-  const payloads: CloudUsagePayload[] = []
+type PayloadIdentity = {
+  date: string
+  source: 'claude' | 'codex'
+  model: string
+}
 
+type UploadResult = {
+  uploaded: PayloadIdentity[]
+  total: number
+  skippedReason: string | null
+}
+
+function buildClaudePayloads(
+  claude: Awaited<ReturnType<typeof readClaudeStats>>,
+  claudeRealtimePayloads: Array<{
+    date: string
+    source: 'claude'
+    model: string
+    input_uncached: number
+    output: number
+    cached_read: number
+    cached_write: number
+    total_io: number
+  }>,
+): CloudUsagePayload[] {
+  if (claudeRealtimePayloads.length > 0) {
+    return [...claudeRealtimePayloads]
+  }
+
+  const payloads: CloudUsagePayload[] = []
   for (const daily of claude?.dailyModelTokens ?? []) {
     for (const [model, total] of Object.entries(daily.tokensByModel)) {
       payloads.push({
@@ -39,13 +73,17 @@ function buildCloudPayloads(
       })
     }
   }
+  return payloads
+}
 
+function buildCodexFallbackPayloads(codexSessions: CodexSessionData[]): CloudUsagePayload[] {
   const codexByDay = new Map<string, ReturnType<typeof emptyBreakdown>>()
   for (const session of codexSessions) {
     const current = codexByDay.get(session.date) ?? emptyBreakdown()
     codexByDay.set(session.date, addBreakdown(current, fromCodexUsage(session.totalTokens)))
   }
 
+  const payloads: CloudUsagePayload[] = []
   for (const [date, total] of codexByDay.entries()) {
     payloads.push({
       date,
@@ -60,6 +98,49 @@ function buildCloudPayloads(
   }
 
   return payloads
+}
+
+function hasPayloadForSource(payloads: CloudUsagePayload[], source: 'claude' | 'codex'): boolean {
+  return payloads.some(payload => payload.source === source)
+}
+
+async function readClaudeRealtimePayloads(): Promise<Array<{
+  date: string
+  source: 'claude'
+  model: string
+  input_uncached: number
+  output: number
+  cached_read: number
+  cached_write: number
+  total_io: number
+}>> {
+  const ledger = await readClaudeLedger()
+  return listAllClaudePayloadsFromLedger(ledger)
+}
+
+async function collectCodexRealtimePayloads(codexSessions: CodexSessionData[]): Promise<{
+  payloads: Array<{
+    date: string
+    source: 'codex'
+    model: string
+    input_uncached: number
+    output: number
+    cached_read: number
+    cached_write: number
+    total_io: number
+  }>
+  ledger: CodexRealtimeLedger
+}> {
+  const ledger = await readCodexLedger()
+  applyCodexSessionsToLedger(ledger, codexSessions)
+  const payloads = listAllCodexPayloadsFromLedger(ledger)
+  await writeCodexLedger(ledger)
+
+  return { payloads, ledger }
+}
+
+function payloadKey(payload: PayloadIdentity): string {
+  return `${payload.date}|${payload.model}`
 }
 
 async function resolveCloudAuth(): Promise<{ apiBase: string | null; token: string | null; devUserId: string | null }> {
@@ -108,17 +189,25 @@ async function resolveCloudAuth(): Promise<{ apiBase: string | null; token: stri
   }
 }
 
-async function uploadCloudPayloads(payloads: CloudUsagePayload[]): Promise<number> {
+async function uploadCloudPayloads(payloads: CloudUsagePayload[]): Promise<UploadResult> {
   const auth = await resolveCloudAuth()
   if (!auth.apiBase) {
-    return 0
+    return {
+      uploaded: [],
+      total: payloads.length,
+      skippedReason: 'missing_api_base',
+    }
   }
 
   if (!auth.token && !auth.devUserId) {
-    return 0
+    return {
+      uploaded: [],
+      total: payloads.length,
+      skippedReason: 'not_linked',
+    }
   }
 
-  let uploaded = 0
+  const uploaded: PayloadIdentity[] = []
 
   for (const payload of payloads) {
     const headers: Record<string, string> = {
@@ -135,41 +224,72 @@ async function uploadCloudPayloads(payloads: CloudUsagePayload[]): Promise<numbe
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
-    })
+    }).catch(() => null)
 
-    if (response.ok) {
-      uploaded++
+    if (response?.ok) {
+      uploaded.push({
+        date: payload.date,
+        source: payload.source,
+        model: payload.model,
+      })
     }
   }
 
-  return uploaded
+  return {
+    uploaded,
+    total: payloads.length,
+    skippedReason: null,
+  }
 }
 
 export async function syncCommand(): Promise<void> {
   printHeader('Syncing data...')
   await maybeAutoUpdate()
 
-  const [claude, codexSessions] = await Promise.all([
+  const [claude, codexSessions, claudeRealtimePayloads] = await Promise.all([
     readClaudeStats(),
     readCodexSessions(),
+    readClaudeRealtimePayloads(),
   ])
+
+  const codexRealtime = await collectCodexRealtimePayloads(codexSessions)
+  const codexPayloads = codexRealtime.payloads.length > 0
+    ? codexRealtime.payloads
+    : buildCodexFallbackPayloads(codexSessions)
 
   const store = await readStore()
   store.claude.stats = claude
   store.codex.sessions = codexSessions
   await writeStore(store)
 
-  const cloudPayloads = buildCloudPayloads(claude, codexSessions)
-  const uploadedCount = await uploadCloudPayloads(cloudPayloads)
+  const claudePayloads = buildClaudePayloads(claude, claudeRealtimePayloads)
+  const cloudPayloads = [...claudePayloads, ...codexPayloads]
+  const upload = await uploadCloudPayloads(cloudPayloads)
+
+  const uploadedCodexKeys = upload.uploaded
+    .filter(entry => entry.source === 'codex')
+    .map(payloadKey)
+  if (uploadedCodexKeys.length > 0) {
+    markCodexKeysUploaded(codexRealtime.ledger, uploadedCodexKeys)
+    await writeCodexLedger(codexRealtime.ledger)
+  }
 
   const claudeDays = claude?.dailyActivity.length ?? 0
   console.log(`  Claude: ${claudeDays} days of activity`)
   console.log(`  Codex: ${codexSessions.length} sessions`)
   console.log(`  Saved to ~/.agentic-commons/usage.json`)
-  if (uploadedCount > 0) {
-    console.log(`  Cloud sync: uploaded ${uploadedCount}/${cloudPayloads.length} daily aggregates`)
+
+  if (upload.skippedReason) {
+    console.log(`  Cloud sync: skipped (${upload.skippedReason})`)
   } else {
-    console.log('  Cloud sync: skipped (link your CLI with `acommons link` to upload)')
+    console.log(`  Cloud sync: uploaded ${upload.uploaded.length}/${upload.total} daily aggregates`)
+  }
+
+  if (hasPayloadForSource(claudePayloads, 'claude') && claudeRealtimePayloads.length > 0) {
+    console.log(`  Claude upload source: realtime ledger (${claudeRealtimePayloads.length} rows)`)
+  }
+  if (hasPayloadForSource(codexPayloads, 'codex') && codexRealtime.payloads.length > 0) {
+    console.log(`  Codex upload source: realtime ledger (${codexRealtime.payloads.length} rows)`)
   }
   console.log()
 }

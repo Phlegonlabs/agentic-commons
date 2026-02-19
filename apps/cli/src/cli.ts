@@ -12,6 +12,7 @@ import { linkCommand } from './commands/link.js'
 import { updateCommand } from './commands/update.js'
 import { doctorCommand } from './commands/doctor.js'
 import { totalCommand } from './commands/total.js'
+import { watchCommand } from './commands/watch.js'
 
 const commands: Record<string, () => Promise<void>> = {
   stats: statsCommand,
@@ -26,6 +27,7 @@ const commands: Record<string, () => Promise<void>> = {
   update: updateCommand,
   doctor: doctorCommand,
   total: totalCommand,
+  watch: watchCommand,
 }
 
 function printHelp(): void {
@@ -47,6 +49,7 @@ function printHelp(): void {
     update    Upgrade CLI to the latest npm version
     doctor    Run local/cloud diagnostics
     total     All-time token total from local history
+    watch     Watch Codex sessions and upload near real-time
 `)
 }
 

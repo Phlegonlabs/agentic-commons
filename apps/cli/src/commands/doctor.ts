@@ -2,7 +2,14 @@ import { existsSync } from 'node:fs'
 import chalk from 'chalk'
 import { printHeader } from '../format.js'
 import { readConfig } from '../sources/config.js'
-import { acConfigPath, acUsagePath, claudeStatsPath, codexSessionsDir } from '../sources/paths.js'
+import {
+  acClaudeLedgerPath,
+  acCodexLedgerPath,
+  acConfigPath,
+  acUsagePath,
+  claudeStatsPath,
+  codexSessionsDir,
+} from '../sources/paths.js'
 import { readApiBase } from './link-shared.js'
 
 type HealthPayload = {
@@ -99,6 +106,8 @@ export async function doctorCommand(): Promise<void> {
   console.log('  Local')
   console.log(`  ${statusMark(existsSync(acConfigPath))} Config file: ${acConfigPath}`)
   console.log(`  ${statusMark(existsSync(acUsagePath))} Usage store: ${acUsagePath}`)
+  console.log(`  ${statusMark(existsSync(acClaudeLedgerPath))} Claude realtime ledger: ${acClaudeLedgerPath}`)
+  console.log(`  ${statusMark(existsSync(acCodexLedgerPath))} Codex realtime ledger: ${acCodexLedgerPath}`)
   console.log(`  ${statusMark(existsSync(claudeStatsPath))} Claude stats source: ${claudeStatsPath}`)
   console.log(`  ${statusMark(existsSync(codexSessionsDir))} Codex sessions source: ${codexSessionsDir}`)
   console.log(`  ${statusMark(config.schedulerInstalled)} Scheduler: ${config.schedulerInstalled ? (config.schedulerType ?? 'enabled') : 'not installed'}`)

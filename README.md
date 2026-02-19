@@ -78,6 +78,7 @@ acommons link
 acommons update
 acommons doctor
 acommons total
+acommons watch
 ```
 
 Optional cloud upload from CLI:
@@ -126,6 +127,7 @@ Allowed upload fields only:
 Never uploaded:
 
 - prompts/messages
+- transcript `message.content` / thinking blocks
 - file paths/repo names
 - raw session logs
 
@@ -201,6 +203,14 @@ npm publish --access public
 ## CLI Device Linking
 
 - `acommons setup` now attempts device linking in-browser before first cloud sync.
+- `acommons setup` now runs a post-setup self-check (`acommons doctor`) automatically.
+- `acommons setup` automatically migrates legacy Claude `hooks.Stop` command entries to matcher-based format and repairs malformed Stop entries where `hooks` is missing/invalid.
+- `acommons log` (called by Claude Stop hook) now prefers realtime token aggregation from hook `transcript_path` usage and uploads cumulative daily totals without reading/storing message content.
+- After a device is linked once, uploads use the stored API token; continuous web login is not required.
+- Multiple devices can be linked to the same account; each device can upload independently.
+- `acommons sync` uses Claude realtime ledger totals when available and falls back to `stats-cache` aggregates otherwise.
+- `acommons sync` uses Codex realtime ledger totals when available and falls back to `.codex/sessions` aggregation otherwise.
+- `acommons watch` tails `.codex/sessions`, updates `~/.agentic-commons/codex-ledger.json`, and uploads pending Codex daily totals in near realtime (10s debounce batches).
 - `acommons sync` falls back to interactive device linking when no API token is found.
 - `acommons link` can be used anytime to force a re-link.
 - `acommons sync` checks npm once per day and auto-updates to latest by default.
