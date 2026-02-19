@@ -1,4 +1,7 @@
 import { existsSync } from 'node:fs'
+import { exec } from 'node:child_process'
+import { homedir, platform } from 'node:os'
+import { promisify } from 'node:util'
 import chalk from 'chalk'
 import { printHeader } from '../format.js'
 import { readConfig, writeConfig } from '../sources/config.js'
@@ -28,6 +31,9 @@ type CheckResult = {
   detail: string
 }
 
+const execAsync = promisify(exec)
+const MAC_LAUNCHD_LABEL = 'com.agentic-commons'
+
 function statusMark(ok: boolean): string {
   return ok ? chalk.green('+') : chalk.yellow('!')
 }
@@ -37,6 +43,25 @@ function normalizeError(cause: unknown): string {
     return cause.message
   }
   return 'unknown_error'
+}
+
+function macLaunchAgentPlistPath(): string {
+  return `${homedir()}/Library/LaunchAgents/${MAC_LAUNCHD_LABEL}.plist`
+}
+
+async function checkMacLaunchAgentLoaded(): Promise<CheckResult> {
+  try {
+    await execAsync(`launchctl list ${MAC_LAUNCHD_LABEL}`)
+    return {
+      ok: true,
+      detail: `loaded (${MAC_LAUNCHD_LABEL})`,
+    }
+  } catch {
+    return {
+      ok: false,
+      detail: `not loaded (${MAC_LAUNCHD_LABEL})`,
+    }
+  }
 }
 
 async function checkApiHealth(apiBase: string): Promise<CheckResult> {
@@ -131,6 +156,12 @@ export async function doctorCommand(): Promise<void> {
   console.log(`  ${statusMark(existsSync(claudeStatsPath))} Claude stats source: ${claudeStatsPath}`)
   console.log(`  ${statusMark(existsSync(codexSessionsDir))} Codex sessions source: ${codexSessionsDir}`)
   console.log(`  ${statusMark(config.schedulerInstalled)} Scheduler: ${config.schedulerInstalled ? (config.schedulerType ?? 'enabled') : 'not installed'}`)
+  if (platform() === 'darwin') {
+    const plistPath = macLaunchAgentPlistPath()
+    console.log(`  ${statusMark(existsSync(plistPath))} macOS LaunchAgent plist: ${plistPath}`)
+    const launchAgent = await checkMacLaunchAgentLoaded()
+    console.log(`  ${statusMark(launchAgent.ok)} macOS LaunchAgent: ${launchAgent.detail}`)
+  }
   console.log()
 
   console.log('  Cloud')

@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { exec } from 'node:child_process'
-import { platform } from 'node:os'
+import { homedir, platform } from 'node:os'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
 import { acDir, claudeSettingsPath, codexSessionsDir } from '../sources/paths.js'
@@ -51,6 +51,44 @@ async function resolveWindowsAcommonsCmdPath(): Promise<string> {
   }
 
   return 'acommons'
+}
+
+type DarwinAcommonsResolution = {
+  path: string
+  source: 'which' | 'npm-prefix' | 'fallback'
+}
+
+async function resolveDarwinAcommonsPath(): Promise<DarwinAcommonsResolution> {
+  const whichLookup = await execAsync('which acommons').catch(() => ({ stdout: '' }))
+  const whichPath = firstNonEmptyLine(whichLookup.stdout)
+  if (whichPath) {
+    return {
+      path: whichPath,
+      source: 'which',
+    }
+  }
+
+  const prefixLookup = await execAsync('npm prefix -g').catch(() => ({ stdout: '' }))
+  const npmPrefix = firstNonEmptyLine(prefixLookup.stdout)
+  if (npmPrefix) {
+    const candidate = `${npmPrefix}/bin/acommons`
+    if (existsSync(candidate)) {
+      return {
+        path: candidate,
+        source: 'npm-prefix',
+      }
+    }
+
+    return {
+      path: 'acommons',
+      source: 'fallback',
+    }
+  }
+
+  return {
+    path: 'acommons',
+    source: 'fallback',
+  }
 }
 
 async function readJsonFile<T>(path: string): Promise<T | null> {
@@ -251,8 +289,13 @@ async function installScheduler(): Promise<'schtasks' | 'launchd' | 'crontab' | 
   }
 
   if (os === 'darwin') {
-    const plistPath = `${process.env['HOME']}/Library/LaunchAgents/com.agentic-commons.plist`
-    const acommonsPath = (await execAsync('which acommons').catch(() => ({ stdout: 'acommons' }))).stdout.trim()
+    const plistPath = `${homedir()}/Library/LaunchAgents/com.agentic-commons.plist`
+    const resolvedAcommons = await resolveDarwinAcommonsPath()
+    const acommonsPath = resolvedAcommons.path
+    if (resolvedAcommons.source !== 'which') {
+      console.log(`  ${chalk.yellow('!')} macOS acommons path resolved via ${resolvedAcommons.source}: ${acommonsPath}`)
+    }
+
     const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -264,9 +307,21 @@ async function installScheduler(): Promise<'schtasks' | 'launchd' | 'crontab' | 
 </dict>
 </plist>`
     await writeFile(plistPath, plist, 'utf-8')
-    await execAsync(`launchctl load "${plistPath}"`).catch(() => {})
-    console.log(`  ${chalk.green('+')} macOS LaunchAgent installed`)
-    return 'launchd'
+    await execAsync(`launchctl unload "${plistPath}"`).catch(() => ({ stdout: '', stderr: '' }))
+
+    try {
+      await execAsync(`launchctl load "${plistPath}"`)
+      console.log(`  ${chalk.green('+')} macOS LaunchAgent installed`)
+      return 'launchd'
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : 'unknown_error'
+      console.log(`  ${chalk.yellow('!')} Failed to load macOS LaunchAgent (${detail})`)
+      console.log(`  ${chalk.yellow('!')} Try:`)
+      console.log(`    launchctl unload "${plistPath}" 2>/dev/null`)
+      console.log(`    launchctl load "${plistPath}"`)
+      console.log(`    launchctl list | grep com.agentic-commons`)
+      return null
+    }
   }
 
   try {

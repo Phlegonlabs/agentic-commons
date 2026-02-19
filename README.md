@@ -81,6 +81,44 @@ acommons total
 acommons watch
 ```
 
+### MacBook Quick Start
+
+Prerequisite: Node.js and npm are already installed.
+
+```bash
+node -v
+npm -v
+npm i -g agentic-commons
+acommons setup
+acommons doctor
+```
+
+After `setup`, automatic sync is enabled (macOS `launchd`, hourly).  
+Manual upload is optional:
+
+```bash
+acommons sync
+```
+
+### Mac Troubleshooting
+
+If `acommons` is not found:
+
+```bash
+which acommons
+npm i -g agentic-commons
+```
+
+If auto sync is not running:
+
+```bash
+launchctl list | grep com.agentic-commons
+cat ~/Library/LaunchAgents/com.agentic-commons.plist
+launchctl unload ~/Library/LaunchAgents/com.agentic-commons.plist 2>/dev/null
+launchctl load ~/Library/LaunchAgents/com.agentic-commons.plist
+acommons doctor
+```
+
 Optional cloud upload from CLI:
 
 ```powershell
@@ -100,13 +138,16 @@ acommons sync
 ## Web Pages
 
 - `/`: home + install guide
+- `/cli-commands`: CLI command reference
 - `/login`: Google OAuth + Email Magic Link
 - `/auth/callback`: auth callback landing
 - `/onboarding/profile`: first-login handle/profile setup
 - `/onboarding/privacy`: first-login privacy selection
 - `/leaderboard`: ranking tabs (`24h`, `7d`, `all`)
+- `/privacy`: privacy summary
+- `/terms`: terms and conditions
+- `/changelog`: release timeline
 - `/u/:handle`: public profile page
-- `/u/template`: built-in template/demo public profile
 - `/me`: personal profile page
 
 ## Test and Verification
