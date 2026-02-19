@@ -25,7 +25,7 @@
     "acommons": "apps/cli/dist/cli.js"
   },
   "scripts": {
-    "build": "npm run build:cli && npm run build -w @agentic-commons/shared",
+    "build": "npm run build -w @agentic-commons/shared && npm run build:cli",
     "build:cli": "tsc",
     "dev": "tsc --watch",
     "typecheck": "npm run build:cli && npm run typecheck -w @agentic-commons/shared"

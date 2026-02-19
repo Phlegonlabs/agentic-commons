@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { acClaudeLedgerPath, acDir } from './paths.js'
 import type { TranscriptUsageRow } from './claude-transcript.js'
+import type { UsageDailyBase, UsageDaily } from '@agentic-commons/shared'
 
 type LedgerUsageTotals = {
   inputUncached: number
@@ -197,24 +198,8 @@ function addRowsToLedger(
 function listDailyPayloadsFromLedger(
   ledger: ClaudeRealtimeLedger,
   keys: string[],
-): Array<{
-  date: string
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}> {
-  const payloads: Array<{
-    date: string
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }> = []
+): UsageDailyBase[] {
+  const payloads: UsageDailyBase[] = []
 
   for (const key of keys) {
     const [date, model] = key.split('|')
@@ -243,26 +228,8 @@ function listDailyPayloadsFromLedger(
 
 function listAllClaudePayloadsFromLedger(
   ledger: ClaudeRealtimeLedger,
-): Array<{
-  date: string
-  source: 'claude'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}> {
-  const payloads: Array<{
-    date: string
-    source: 'claude'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }> = []
+): (UsageDaily & { source: 'claude' })[] {
+  const payloads: (UsageDaily & { source: 'claude' })[] = []
 
   for (const [date, byModel] of Object.entries(ledger.dailyByModel)) {
     for (const [model, totals] of Object.entries(byModel)) {

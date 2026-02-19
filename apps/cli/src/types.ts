@@ -1,6 +1,4 @@
-// === Tool sources ===
-
-type ToolSource = 'claude' | 'codex'
+import type { ToolSource } from '@agentic-commons/shared'
 
 // === Claude stats-cache.json structures ===
 

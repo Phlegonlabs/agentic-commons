@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fromCodexUsage } from '../token-metrics.js'
 import type { CodexSessionData } from '../types.js'
 import { acCodexLedgerPath, acDir } from './paths.js'
+import type { UsageDaily } from '@agentic-commons/shared'
 
 type LedgerUsageTotals = {
   inputUncached: number
@@ -222,26 +223,8 @@ function applyCodexSessionsToLedger(
 function listDailyPayloadsFromCodexLedger(
   ledger: CodexRealtimeLedger,
   keys: string[],
-): Array<{
-  date: string
-  source: 'codex'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}> {
-  const payloads: Array<{
-    date: string
-    source: 'codex'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }> = []
+): (UsageDaily & { source: 'codex' })[] {
+  const payloads: (UsageDaily & { source: 'codex' })[] = []
 
   for (const key of keys) {
     const [date, model] = key.split('|')
@@ -271,26 +254,8 @@ function listDailyPayloadsFromCodexLedger(
 
 function listAllCodexPayloadsFromLedger(
   ledger: CodexRealtimeLedger,
-): Array<{
-  date: string
-  source: 'codex'
-  model: string
-  input_uncached: number
-  output: number
-  cached_read: number
-  cached_write: number
-  total_io: number
-}> {
-  const payloads: Array<{
-    date: string
-    source: 'codex'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }> = []
+): (UsageDaily & { source: 'codex' })[] {
+  const payloads: (UsageDaily & { source: 'codex' })[] = []
 
   for (const [date, byModel] of Object.entries(ledger.dailyByModel)) {
     for (const [model, totals] of Object.entries(byModel)) {
@@ -312,19 +277,7 @@ function listAllCodexPayloadsFromLedger(
 
 function listPendingCodexPayloadsFromLedger(
   ledger: CodexRealtimeLedger,
-): Array<{
-  key: string
-  payload: {
-    date: string
-    source: 'codex'
-    model: string
-    input_uncached: number
-    output: number
-    cached_read: number
-    cached_write: number
-    total_io: number
-  }
-}> {
+): Array<{ key: string; payload: UsageDaily & { source: 'codex' } }> {
   const payloads = listDailyPayloadsFromCodexLedger(ledger, ledger.pendingKeys)
   return payloads.map(payload => ({
     key: keyFor(payload.date, payload.model),
