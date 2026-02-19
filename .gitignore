@@ -17,9 +17,6 @@ TASKS.md
 PROGRESS.md
 plans/
 SECURITY-AUDIT-*.md
-apps/api/
-apps/web/
-supabase/
 
 # Logs
 *.log
