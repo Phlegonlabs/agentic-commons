@@ -7,6 +7,8 @@ import { readConfig, writeConfig } from '../sources/config.js'
 import { readStoredApiToken, writeStoredApiToken } from '../sources/api-token.js'
 import { readDeviceIdentityPayload } from '../sources/device-identity.js'
 import { readExternalUsagePayloads } from '../sources/external-usage.js'
+import { readUploadTracker, writeUploadTracker, filterChangedPayloads, markPayloadsUploaded } from '../sources/upload-tracker.js'
+import { readOpenCodeDailyPayloads } from '../sources/opencode.js'
 import { linkDevice, readApiBase } from './link-shared.js'
 import { maybeAutoUpdate } from './auto-update.js'
 import { listAllClaudePayloadsFromLedger, readClaudeLedger } from '../sources/claude-ledger.js'
@@ -267,11 +269,12 @@ export async function syncCommand(): Promise<void> {
   printHeader('Syncing data...')
   await maybeAutoUpdate()
 
-  const [claude, codexSessions, claudeRealtimePayloads, externalUsage] = await Promise.all([
+  const [claude, codexSessions, claudeRealtimePayloads, externalUsage, openCodeDbPayloads] = await Promise.all([
     readClaudeStats(),
     readCodexSessions(),
     readClaudeRealtimePayloads(),
     readExternalUsagePayloads(),
+    Promise.resolve(readOpenCodeDailyPayloads()),
   ])
 
   const codexRealtime = await collectCodexRealtimePayloads(codexSessions)
@@ -285,8 +288,21 @@ export async function syncCommand(): Promise<void> {
   await writeStore(store)
 
   const claudePayloads = buildClaudePayloads(claude, claudeRealtimePayloads)
-  const cloudPayloads = deduplicatePayloads([...claudePayloads, ...codexPayloads, ...externalUsage.payloads])
-  const upload = await uploadCloudPayloads(cloudPayloads)
+  const externalPayloads = openCodeDbPayloads.length > 0
+    ? externalUsage.payloads.filter(p => p.source !== 'opencode')
+    : externalUsage.payloads
+  const cloudPayloads = deduplicatePayloads([...claudePayloads, ...codexPayloads, ...externalPayloads, ...openCodeDbPayloads])
+  const tracker = await readUploadTracker()
+  const changedPayloads = filterChangedPayloads(cloudPayloads, tracker)
+  const upload = await uploadCloudPayloads(changedPayloads)
+
+  if (upload.uploaded.length > 0) {
+    const uploadedPayloads = changedPayloads.filter(p =>
+      upload.uploaded.some(u => u.date === p.date && u.source === p.source && u.provider === p.provider && u.model === p.model)
+    )
+    markPayloadsUploaded(tracker, uploadedPayloads)
+    await writeUploadTracker(tracker)
+  }
 
   const uploadedCodexKeys = upload.uploaded
     .filter(entry => entry.source === 'codex')
@@ -299,13 +315,14 @@ export async function syncCommand(): Promise<void> {
   const claudeDays = claude?.dailyActivity.length ?? 0
   console.log(`  Claude: ${claudeDays} days of activity`)
   console.log(`  Codex: ${codexSessions.length} sessions`)
-  console.log(`  External rows: ${externalUsage.payloads.length}`)
+  console.log(`  External rows: ${externalPayloads.length}`)
+  console.log(`  OpenCode DB rows: ${openCodeDbPayloads.length}`)
   console.log(`  Saved to ~/.agentic-commons/usage.json`)
 
   if (upload.skippedReason) {
     console.log(`  Cloud sync: skipped (${upload.skippedReason})`)
   } else {
-    console.log(`  Cloud sync: uploaded ${upload.uploaded.length}/${upload.total} daily aggregates`)
+    console.log(`  Cloud sync: uploaded ${upload.uploaded.length}/${upload.total} (${cloudPayloads.length - changedPayloads.length} unchanged, skipped)`)
   }
 
   if (hasPayloadForSource(claudePayloads, 'claude') && claudeRealtimePayloads.length > 0) {
@@ -314,7 +331,9 @@ export async function syncCommand(): Promise<void> {
   if (hasPayloadForSource(codexPayloads, 'codex') && codexRealtime.payloads.length > 0) {
     console.log(`  Codex upload source: realtime ledger (${codexRealtime.payloads.length} rows)`)
   }
-  if (externalUsage.diagnostics.openCodeDirExists) {
+  if (openCodeDbPayloads.length > 0) {
+    console.log(`  OpenCode source: SQLite DB (${openCodeDbPayloads.length} rows)`)
+  } else if (externalUsage.diagnostics.openCodeDirExists) {
     console.log(`  OpenCode scan: jsonl files=${externalUsage.diagnostics.openCodeJsonlFiles} parsed rows=${externalUsage.payloads.filter(row => row.source === 'opencode').length}`)
   }
   console.log()

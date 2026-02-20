@@ -1,6 +1,6 @@
 {
   "name": "agentic-commons",
-  "version": "0.1.13",
+  "version": "0.2.1",
   "description": "Unified token usage stats for AI coding tools",
   "license": "MIT",
   "type": "module",
