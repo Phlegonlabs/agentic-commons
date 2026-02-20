@@ -25,6 +25,7 @@ import type { UsageDaily } from '@agentic-commons/shared'
 
 const CLAUDE_PROVIDER = 'anthropic'
 const CODEX_DEFAULT_PROVIDER = 'openai'
+const MIN_UPLOAD_TOTAL_IO = 5_000
 
 type PayloadIdentity = {
   date: string
@@ -291,7 +292,7 @@ export async function syncCommand(): Promise<void> {
   const externalPayloads = openCodeDbPayloads.length > 0
     ? externalUsage.payloads.filter(p => p.source !== 'opencode')
     : externalUsage.payloads
-  const cloudPayloads = deduplicatePayloads([...claudePayloads, ...codexPayloads, ...externalPayloads, ...openCodeDbPayloads])
+  const cloudPayloads = deduplicatePayloads([...claudePayloads, ...codexPayloads, ...externalPayloads, ...openCodeDbPayloads]).filter(p => p.total_io >= MIN_UPLOAD_TOTAL_IO)
   const tracker = await readUploadTracker()
   const changedPayloads = filterChangedPayloads(cloudPayloads, tracker)
   const upload = await uploadCloudPayloads(changedPayloads)
