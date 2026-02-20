@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { exec } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
 import { homedir, platform } from 'node:os'
 import { promisify } from 'node:util'
 import chalk from 'chalk'
@@ -13,6 +13,7 @@ import { linkDevice } from './link-shared.js'
 import { doctorCommand } from './doctor.js'
 
 const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 function firstNonEmptyLine(text: string): string | null {
   const lines = text
@@ -278,9 +279,15 @@ async function installScheduler(): Promise<'schtasks' | 'launchd' | 'crontab' | 
   if (os === 'win32') {
     try {
       const acommonsCmdPath = await resolveWindowsAcommonsCmdPath()
-      const taskRunCommand = `cmd /c ""${acommonsCmdPath}" sync""`
-      await execAsync(`schtasks /create /tn "AgenticCommons" /tr "${taskRunCommand}" /sc hourly /f`)
-      console.log(`  ${chalk.green('+')} Windows scheduled task created`)
+      const vbsPath = `${acDir}\\sync.vbs`
+      const vbsScript = `CreateObject("WScript.Shell").Run """${acommonsCmdPath}"" sync", 0, True`
+      await writeFile(vbsPath, vbsScript, 'utf-8')
+      await execFileAsync('schtasks', [
+        '/create', '/tn', 'AgenticCommons',
+        '/tr', `wscript.exe "${vbsPath}"`,
+        '/sc', 'hourly', '/f',
+      ])
+      console.log(`  ${chalk.green('+')} Windows scheduled task created (background)`)
       return 'schtasks'
     } catch (e) {
       console.log(`  ${chalk.yellow('!')} Failed to create scheduled task: ${e}`)
@@ -296,6 +303,7 @@ async function installScheduler(): Promise<'schtasks' | 'launchd' | 'crontab' | 
       console.log(`  ${chalk.yellow('!')} macOS acommons path resolved via ${resolvedAcommons.source}: ${acommonsPath}`)
     }
 
+    const logPath = `${acDir}/sync.log`
     const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -304,6 +312,9 @@ async function installScheduler(): Promise<'schtasks' | 'launchd' | 'crontab' | 
   <key>ProgramArguments</key><array><string>${acommonsPath}</string><string>sync</string></array>
   <key>StartInterval</key><integer>3600</integer>
   <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>${logPath}</string>
+  <key>StandardErrorPath</key><string>${logPath}</string>
+  <key>ProcessType</key><string>Background</string>
 </dict>
 </plist>`
     await writeFile(plistPath, plist, 'utf-8')

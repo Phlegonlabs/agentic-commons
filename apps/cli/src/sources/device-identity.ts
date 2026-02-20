@@ -124,6 +124,8 @@ async function readOrCreateDeviceSecret(): Promise<string> {
 }
 
 async function readDeviceIdentityPayload(): Promise<DeviceIdentityPayload> {
+  // NOTE: hostname is sent as device_label for device identification.
+  // It may contain personal info (e.g. "john-macbook.local").
   const label = hostname().slice(0, MAX_DEVICE_LABEL_LENGTH)
   const secret = await readOrCreateDeviceSecret()
   const signals = await detectDeviceSignals()

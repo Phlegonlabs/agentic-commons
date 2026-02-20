@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { openCodeDbPath } from './paths.js'
 import type { TokenBreakdown } from '../token-metrics.js'
+import type { UsageDaily } from '@agentic-commons/shared'
 
 type OpenCodeDailyRow = {
   date: string
@@ -99,6 +100,55 @@ export function readOpenCodeStats(): OpenCodeStats | null {
     return { daily: dailyRows, models, totalSessions: cnt }
   } catch {
     return null
+  } finally {
+    db.close()
+  }
+}
+
+const DAILY_MODEL_SQL = `
+  SELECT
+    date(time_created / 1000, 'unixepoch', 'localtime') as date,
+    json_extract(data, '$.providerID') as provider,
+    json_extract(data, '$.modelID') as model,
+    COALESCE(SUM(json_extract(data, '$.tokens.input')), 0) as inputUncached,
+    COALESCE(SUM(json_extract(data, '$.tokens.output')), 0) as output,
+    COALESCE(SUM(json_extract(data, '$.tokens.cache.read')), 0) as cachedRead,
+    COALESCE(SUM(json_extract(data, '$.tokens.cache.write')), 0) as cachedWrite
+  FROM message
+  WHERE json_extract(data, '$.role') = 'assistant'
+    AND json_extract(data, '$.tokens') IS NOT NULL
+  GROUP BY date, provider, model
+`
+
+type DailyModelRow = {
+  date: string
+  provider: string | null
+  model: string | null
+  inputUncached: number
+  output: number
+  cachedRead: number
+  cachedWrite: number
+}
+
+export function readOpenCodeDailyPayloads(): UsageDaily[] {
+  const db = openDb()
+  if (!db) return []
+
+  try {
+    const rows = db.prepare(DAILY_MODEL_SQL).all() as DailyModelRow[]
+    return rows.map(r => ({
+      date: r.date,
+      source: 'opencode' as const,
+      provider: r.provider ?? 'unknown',
+      model: r.model ?? 'unknown',
+      input_uncached: r.inputUncached,
+      output: r.output,
+      cached_read: r.cachedRead,
+      cached_write: r.cachedWrite,
+      total_io: r.inputUncached + r.output,
+    }))
+  } catch {
+    return []
   } finally {
     db.close()
   }

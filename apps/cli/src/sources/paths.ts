@@ -14,6 +14,7 @@ export const acReportPath = join(acDir, 'report.html')
 export const acConfigPath = join(acDir, 'config.json')
 export const acApiTokenPath = join(acDir, 'api-token.secret')
 export const acDeviceSecretPath = join(acDir, 'device-secret.key')
+export const acUploadTrackerPath = join(acDir, 'upload-tracker.json')
 export const acExternalUsageDir = join(acDir, 'external-usage')
 export const openCodeDir = platform() === 'win32'
   ? join(home, 'AppData', 'Roaming', 'opencode')
