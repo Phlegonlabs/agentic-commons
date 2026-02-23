@@ -25,7 +25,7 @@ import type { UsageDaily } from '@agentic-commons/shared'
 
 const CLAUDE_PROVIDER = 'anthropic'
 const CODEX_DEFAULT_PROVIDER = 'openai'
-const MIN_UPLOAD_TOTAL_IO = 5_000
+const MIN_UPLOAD_TOTAL_IO = 1_000
 
 type PayloadIdentity = {
   date: string
