@@ -26,6 +26,31 @@ acommons doctor
 acommons sync
 ```
 
+## Claude Code Skill
+
+在 Claude Code 內直接使用 `/acommons` — 查看統計無需安裝 CLI。
+
+```
+/acommons            顯示今日用量（預設：stats）
+/acommons daily      14 天每日明細
+/acommons models     按模型統計 token 用量
+/acommons total      全量彙總
+/acommons sync       執行採集 + 上傳流水線
+/acommons setup      首次設定
+/acommons link       裝置 OAuth 認證
+/acommons doctor     健康檢查與診斷
+/acommons probe      偵測已安裝的 AI 工具
+/acommons report     產生 HTML 使用報告
+```
+
+安裝 skill：
+
+```bash
+npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
+```
+
+Skill 直接讀取本機資料，並包含 Stop hook 在工作階段結束時自動更新 token 帳本。
+
 ## 連結
 
 - 專案說明：`README.md`
