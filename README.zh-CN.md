@@ -108,6 +108,31 @@ acommons link
 acommons update
 ```
 
+## Claude Code Skill
+
+在 Claude Code 内直接使用 `/acommons` — 查看统计无需安装 CLI。
+
+```
+/acommons            显示今日使用量（默认：stats）
+/acommons daily      14 天每日明细
+/acommons models     按模型统计 token 用量
+/acommons total      全量汇总
+/acommons sync       执行采集 + 上传流水线
+/acommons setup      首次配置
+/acommons link       设备 OAuth 认证
+/acommons doctor     健康检查与诊断
+/acommons probe      探测已安装的 AI 工具
+/acommons report     生成 HTML 使用报告
+```
+
+安装 skill：
+
+```bash
+npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
+```
+
+Skill 直接读取本地数据，并包含 Stop hook 在会话结束时自动更新 token 账本。
+
 ## 本地开发（公开仓库）
 
 安装依赖：
