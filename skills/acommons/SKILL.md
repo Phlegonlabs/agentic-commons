@@ -4,7 +4,7 @@ description: >
   AI coding tool usage analytics. Tracks token usage across Claude Code, Codex CLI,
   OpenCode, Gemini CLI, and external tools. Use when user wants to view AI usage stats,
   sync usage data, or set up automatic usage tracking.
-license: Apache-2.0
+license: MIT
 compatibility: Requires Node.js 20+. Works with Claude Code, Cursor, Windsurf, Cline, and other AI agents.
 metadata:
   author: phlegonlabs
