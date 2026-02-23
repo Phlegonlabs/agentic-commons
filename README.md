@@ -89,28 +89,39 @@ acommons sync
 
 ## 🎯 Claude Code Skill
 
-Use `/acommons` directly inside Claude Code — no CLI install required for viewing stats.
+> **No CLI install required** — use `/acommons` directly inside Claude Code.
+
+<table><tr>
+<td><strong>SKILL</strong></td>
+<td>
 
 ```
-/acommons            Show today's usage (default: stats)
-/acommons daily      14-day daily breakdown
-/acommons models     Per-model token usage
-/acommons total      All-time summary
-/acommons sync       Run collect + upload pipeline
-/acommons setup      First-time setup
-/acommons link       Device OAuth authentication
-/acommons doctor     Health check and diagnostics
-/acommons probe      Detect all installed AI tools
-/acommons report     Generate HTML usage report
-```
-
-**Install the skill:**
-
-```bash
 npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
 ```
 
+</td>
+<td>then type <code>/acommons</code> in Claude Code</td>
+</tr></table>
+
 The skill reads local data directly and includes a Stop hook for automatic token ledger updates on session end.
+
+<details>
+<summary><strong>All skill commands</strong></summary>
+
+| Command | Description |
+| --- | --- |
+| `/acommons` | Show today's usage (default: stats) |
+| `/acommons daily` | 14-day daily breakdown |
+| `/acommons models` | Per-model token usage |
+| `/acommons total` | All-time summary |
+| `/acommons sync` | Run collect + upload pipeline |
+| `/acommons setup` | First-time setup |
+| `/acommons link` | Device OAuth authentication |
+| `/acommons doctor` | Health check and diagnostics |
+| `/acommons probe` | Detect all installed AI tools |
+| `/acommons report` | Generate HTML usage report |
+
+</details>
 
 ---
 
