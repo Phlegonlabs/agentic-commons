@@ -1,114 +1,93 @@
-# Agentic Commons
+<div align="center">
 
-Agentic Commons 是一个以隐私为边界的 AI 使用量分析 open-core 项目。
+<h1>Agentic Commons</h1>
 
-[English](./README.md) | 简体中文
+<h3>隐私优先的 AI 编程工具使用量分析</h3>
 
-## Open-Core 边界
+追踪 Claude Code、Codex CLI、OpenCode、Gemini CLI 等工具的 token 用量。<br>
+本地优先采集，可验证聚合，可选云端同步。<br>
+你的 prompt 永远不会离开你的机器。
 
-本仓库公开内容：
+<img src="https://img.shields.io/badge/🔒_隐私优先-success?style=for-the-badge" alt="Privacy first">&nbsp;
+<img src="https://img.shields.io/badge/🤖_6+_AI_工具-blue?style=for-the-badge" alt="6+ tools">&nbsp;
+<img src="https://img.shields.io/badge/📊_Token_分析-purple?style=for-the-badge" alt="Analytics">&nbsp;
+<img src="https://img.shields.io/badge/⚡_自动同步-orange?style=for-the-badge" alt="Auto sync">
 
-- `apps/cli`：`acommons` CLI 源码
-- `packages/shared`：共享 schema/types
-- 公开文档、贡献规范与安全提交流程
+[![npm version](https://img.shields.io/npm/v/agentic-commons.svg?style=flat-square&color=cb3837)](https://npmjs.com/package/agentic-commons)
+[![npm downloads](https://img.shields.io/npm/dm/agentic-commons.svg?style=flat-square&color=blue)](https://npmjs.com/package/agentic-commons)
+[![GitHub stars](https://img.shields.io/github/stars/Phlegonlabs/agentic-commons?style=flat-square)](https://github.com/Phlegonlabs/agentic-commons)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-本仓库不公开（私有）：
+[English](./README.md) | 简体中文 | [繁體中文](./README.zh-TW.md)
 
-- 托管 API 的生产实现
-- 托管 Web 的生产实现
-- 基础设施与数据库迁移资产
+</div>
 
-## 项目做什么
+---
 
-- 在本地收集 Claude/Codex 使用量，并按天按模型聚合 token 总量。
-- 同步到托管平台用于排行榜与公开 profile 统计。
-- 不上传 prompts、对话内容和原始日志。
+## 📑 快速导航
 
-英文 README 是发布与版本说明的基准文档。中文 README 保持功能与使用方式对齐。
+| 章节 | 说明 |
+| --- | --- |
+| [快速开始](#-快速开始) | 2 分钟完成安装 |
+| [CLI 命令](#-cli-命令) | 完整命令参考 |
+| [Claude Code Skill](#-claude-code-skill) | 在 Claude Code 内直接使用 |
+| [支持的工具](#-支持的工具) | Claude、Codex、Gemini 等 |
+| [隐私边界](#-隐私边界) | 上传什么 vs. 留在本地什么 |
+| [外部 CLI 导入](#-外部-cli-自动导入) | 接入任意工具的用量 |
+| [本地开发](#-本地开发) | 从源码构建 |
 
-## 核心原则
+---
 
-- 隐私优先：仅上传白名单字段。
-- 可验证聚合：按模型/日期/token 的统计可审计。
-- 实用自动化：`setup` 自动安装定时任务并执行自检。
+## 🚀 快速开始
 
-## 隐私边界
-
-### 会上传的字段
-
-- `date`, `source`, `model`
-- `input_uncached`, `output`, `cached_read`, `cached_write`, `total_io`
-
-### 永不上传
-
-- Prompt/message 内容
-- Transcript 文本与 reasoning blocks
-- 文件路径与仓库名
-- 原始会话日志
-
-## 环境要求
-
-- Node.js >= 20
-- npm >= 10
-
-## 快速开始（Mac）
+**macOS / Linux:**
 
 ```bash
-node -v
-npm -v
 npm i -g agentic-commons
 acommons setup
 acommons doctor
 ```
 
-完成 setup 后会自动同步（macOS launchd 每小时）。
-
-可选手动同步：
-
-```bash
-acommons sync
-```
-
-## 快速开始（Windows）
+**Windows:**
 
 ```powershell
-node -v
-npm -v
 npm i -g agentic-commons
 acommons setup
 acommons doctor
 ```
 
-可选手动同步：
+setup 完成后自动启用定时同步（macOS launchd 每小时，Windows schtasks，Linux crontab）。
 
-```powershell
+手动同步（可选）：
+
+```bash
 acommons sync
 ```
 
-## CLI 命令
+> **环境要求：** Node.js >= 20, npm >= 10
 
-核心：
+---
 
-```bash
-acommons setup
-acommons doctor
-acommons sync
-```
+## 🛠 CLI 命令
 
-可选：
+| 命令 | 说明 |
+| --- | --- |
+| `acommons setup` | 首次配置（hook、定时任务、脚本） |
+| `acommons doctor` | 健康检查与诊断 |
+| `acommons sync` | 采集 + 上传流水线 |
+| `acommons stats` | 今日使用量概览 |
+| `acommons daily` | 14 天每日明细 |
+| `acommons models` | 按模型统计 token 用量 |
+| `acommons total` | 全量汇总 |
+| `acommons report` | 生成 HTML 使用报告 |
+| `acommons watch` | 监控模式 |
+| `acommons link` | 设备 OAuth 认证 |
+| `acommons update` | 更新到最新版本 |
 
-```bash
-acommons stats
-acommons daily
-acommons models
-acommons total
-acommons report
-acommons watch
-acommons link
-acommons update
-```
+---
 
-## Claude Code Skill
+## 🎯 Claude Code Skill
 
 在 Claude Code 内直接使用 `/acommons` — 查看统计无需安装 CLI。
 
@@ -125,7 +104,7 @@ acommons update
 /acommons report     生成 HTML 使用报告
 ```
 
-安装 skill：
+**安装 skill：**
 
 ```bash
 npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
@@ -133,46 +112,95 @@ npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
 
 Skill 直接读取本地数据，并包含 Stop hook 在会话结束时自动更新 token 账本。
 
-## 本地开发（公开仓库）
+---
 
-安装依赖：
+## 🤖 支持的工具
 
-```bash
-npm install
+| 工具 | 配置目录 | 数据源 | 状态 |
+| --- | --- | --- | :---: |
+| Claude Code | `~/.claude` | `stats-cache.json` + ledger | 完整 |
+| Codex CLI | `~/.codex` | `sessions/*.jsonl` + ledger | 完整 |
+| OpenCode | `~/.local/share/opencode` | `opencode.db` | 完整 |
+| Gemini CLI | `~/.gemini` | `session-*.json` | 完整 |
+| Cursor | `~/.cursor` | 探测识别 | 探测 |
+| Windsurf | `~/.codeium` | 探测识别 | 探测 |
+| Aider | `~/.aider` | 探测识别 | 探测 |
+| Goose | `~/.config/goose` | 探测识别 | 探测 |
+| Amp | `~/.config/amp` | 探测识别 | 探测 |
+| Kimi CLI | `~/.kimi` | 探测识别 | 探测 |
+| Kiro | `~/.kiro` | 探测识别 | 探测 |
+| External | `~/.agentic-commons/external-usage/` | `*.jsonl` 投递 | 完整 |
+
+> **完整** = token 级分析。**探测** = `acommons probe` 可识别该工具。
+
+---
+
+## 🔒 隐私边界
+
+**你的 prompt 永远不会离开你的机器。** 仅上传聚合统计。
+
+| 会上传 | 永不上传 |
+| --- | --- |
+| `date`, `source`, `model` | Prompt / message 内容 |
+| `input_uncached`, `output` | Transcript 文本与 reasoning blocks |
+| `cached_read`, `cached_write`, `total_io` | 文件路径与仓库名 |
+| | 原始会话日志 |
+
+---
+
+## 📦 外部 CLI 自动导入
+
+将事件日志放入 `~/.agentic-commons/external-usage/*.jsonl`，`acommons sync` 会自动扫描并聚合。
+
+**最小事件格式：**
+
+```json
+{
+  "timestamp": "2026-02-19T16:55:00Z",
+  "source": "opencode",
+  "provider": "openai",
+  "model": "gpt-5.1-codex-mini",
+  "usage": { "prompt_tokens": 1200, "completion_tokens": 320 }
+}
 ```
 
-校验：
+<details>
+<summary><strong>也接受的字段格式</strong></summary>
+
+| 格式 | 字段 |
+| --- | --- |
+| 标准化 | `input_uncached`, `output`, `cached_read`, `cached_write` |
+| Anthropic | `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` |
+| Gemini | `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount` |
+
+</details>
+
+---
+
+## 🔧 本地开发
 
 ```bash
+git clone https://github.com/Phlegonlabs/agentic-commons.git
+cd agentic-commons
+npm install
 npm run build:cli
 npm run typecheck -w @agentic-commons/shared
 ```
 
-## 托管平台说明
+---
 
-生产 API/Web 平台与基础设施迁移资产属于私有内部内容，不在本仓库分发。
+## 📞 支持
 
-## 安全与密钥
+| 渠道 | 链接 |
+| --- | --- |
+| 使用问题 | [GitHub Issues](https://github.com/Phlegonlabs/agentic-commons/issues) |
+| 功能建议 | [GitHub Issues](https://github.com/Phlegonlabs/agentic-commons/issues) |
+| 安全报告 | [GitHub Security Advisories](https://github.com/Phlegonlabs/agentic-commons/security/advisories)（私密） |
 
-不要提交真实密钥。
+---
 
-生产密钥必须通过 secret manager 管理。
+<div align="center">
 
-参见：
+**MIT License** · [Phlegonlabs](https://github.com/Phlegonlabs) — 隐私优先的 AI 使用量分析
 
-- `SECURITY.md`
-
-## 贡献
-
-提交 Issue 或 PR 前请先阅读 `CONTRIBUTING.md`。
-
-## 支持
-
-- 使用问题：GitHub Issues
-- 功能建议：GitHub Issues
-- 安全报告：GitHub Security Advisories（私密）
-- 维护策略：best-effort，无 SLA
-
-## 许可证
-
-MIT，见 `LICENSE`。
+</div>
