@@ -1,53 +1,63 @@
-# Agentic Commons
+<div align="center">
 
-Agentic Commons is an open-core project for private-by-design AI usage analytics.
+<h1>Agentic Commons</h1>
 
-English | [Chinese (Simplified)](./README.zh-CN.md) | [Chinese (Traditional)](./README.zh-TW.md)
+<h3>Private-by-design AI usage analytics for coding tools</h3>
 
-## What It Does
+Track token usage across Claude Code, Codex CLI, OpenCode, Gemini CLI, and more.<br>
+Local-first collection, verifiable aggregation, optional cloud sync.<br>
+Your prompts never leave your machine.
 
-- Collects local Claude/Codex usage and aggregates daily model-level token totals.
-- Syncs to a hosted platform for leaderboard and public profile analytics.
-- Keeps prompts, transcript content, and raw logs on your machine.
+<img src="https://img.shields.io/badge/🔒_Privacy_First-success?style=for-the-badge" alt="Privacy first">&nbsp;
+<img src="https://img.shields.io/badge/🤖_6+_AI_Tools-blue?style=for-the-badge" alt="6+ tools">&nbsp;
+<img src="https://img.shields.io/badge/📊_Token_Analytics-purple?style=for-the-badge" alt="Analytics">&nbsp;
+<img src="https://img.shields.io/badge/⚡_Auto_Sync-orange?style=for-the-badge" alt="Auto sync">
 
-The English README is the canonical release reference. Chinese docs provide localized summaries.
+[![npm version](https://img.shields.io/npm/v/agentic-commons.svg?style=flat-square&color=cb3837)](https://npmjs.com/package/agentic-commons)
+[![npm downloads](https://img.shields.io/npm/dm/agentic-commons.svg?style=flat-square&color=blue)](https://npmjs.com/package/agentic-commons)
+[![GitHub stars](https://img.shields.io/github/stars/Phlegonlabs/agentic-commons?style=flat-square)](https://github.com/Phlegonlabs/agentic-commons)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-## Core Principles
+English | [简体中文](./README.zh-CN.md) | [繁體中文](./README.zh-TW.md)
 
-- Privacy-first telemetry: upload allowlist only.
-- Verifiable aggregation: model/day/token totals are auditable.
-- Practical automation: setup installs scheduler and runs health checks.
+</div>
 
-## Privacy Boundary
+---
 
-### Uploaded fields
+## 📑 Quick Navigation
 
-- `date`, `source`, `model`
-- `input_uncached`, `output`, `cached_read`, `cached_write`, `total_io`
+| Section | Description |
+| --- | --- |
+| [Quick Start](#-quick-start) | Install in 2 minutes |
+| [CLI Commands](#-cli-commands) | Full command reference |
+| [Claude Code Skill](#-claude-code-skill) | Use inside Claude Code directly |
+| [Supported Tools](#-supported-tools) | Claude, Codex, Gemini, and more |
+| [Privacy Boundary](#-privacy-boundary) | What's uploaded vs. what stays local |
+| [External CLI Import](#-external-cli-auto-import) | Feed usage from any tool |
+| [Local Development](#-local-development) | Build from source |
 
-### Never uploaded
+---
 
-- Prompt/message content
-- Transcript text and reasoning blocks
-- File paths and repository names
-- Raw session logs
+## 🚀 Quick Start
 
-## Requirements
-
-- Node.js >= 20
-- npm >= 10
-
-## Quick Start (Mac)
+**macOS / Linux:**
 
 ```bash
-node -v
-npm -v
 npm i -g agentic-commons
 acommons setup
 acommons doctor
 ```
 
-After setup, automatic sync is enabled (launchd hourly).
+**Windows:**
+
+```powershell
+npm i -g agentic-commons
+acommons setup
+acommons doctor
+```
+
+After setup, automatic sync is enabled (launchd hourly on macOS, schtasks on Windows, crontab on Linux).
 
 Manual sync (optional):
 
@@ -55,46 +65,29 @@ Manual sync (optional):
 acommons sync
 ```
 
-## Quick Start (Windows)
+> **Requirements:** Node.js >= 20, npm >= 10
 
-```powershell
-node -v
-npm -v
-npm i -g agentic-commons
-acommons setup
-acommons doctor
-```
+---
 
-Manual sync (optional):
+## 🛠 CLI Commands
 
-```powershell
-acommons sync
-```
+| Command | Description |
+| --- | --- |
+| `acommons setup` | First-time setup (hook, scheduler, scripts) |
+| `acommons doctor` | Health check and diagnostics |
+| `acommons sync` | Collect + upload pipeline |
+| `acommons stats` | Today's usage summary |
+| `acommons daily` | 14-day daily breakdown |
+| `acommons models` | Per-model token usage |
+| `acommons total` | All-time aggregated summary |
+| `acommons report` | Generate HTML usage report |
+| `acommons watch` | Watch mode |
+| `acommons link` | Device OAuth authentication |
+| `acommons update` | Update to latest version |
 
-## CLI Commands
+---
 
-Core:
-
-```bash
-acommons setup
-acommons doctor
-acommons sync
-```
-
-Optional:
-
-```bash
-acommons stats
-acommons daily
-acommons models
-acommons total
-acommons report
-acommons watch
-acommons link
-acommons update
-```
-
-## Claude Code Skill
+## 🎯 Claude Code Skill
 
 Use `/acommons` directly inside Claude Code — no CLI install required for viewing stats.
 
@@ -111,7 +104,7 @@ Use `/acommons` directly inside Claude Code — no CLI install required for view
 /acommons report     Generate HTML usage report
 ```
 
-Install the skill:
+**Install the skill:**
 
 ```bash
 npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
@@ -119,15 +112,47 @@ npx skills add Phlegonlabs/agentic-commons --skill acommons -g -y
 
 The skill reads local data directly and includes a Stop hook for automatic token ledger updates on session end.
 
-## External CLI Auto-Import
+---
 
-Use this when you want many third-party CLI tools to feed usage automatically.
+## 🤖 Supported Tools
 
-- Drop event logs into `~/.agentic-commons/external-usage/*.jsonl` (or `*.ndjson`).
-- Each line should be one JSON object.
-- `acommons sync` will auto-scan and aggregate these rows by `date + source + provider + model`.
+| Tool | Config Dir | Data Source | Status |
+| --- | --- | --- | :---: |
+| Claude Code | `~/.claude` | `stats-cache.json` + ledger | Full |
+| Codex CLI | `~/.codex` | `sessions/*.jsonl` + ledger | Full |
+| OpenCode | `~/.local/share/opencode` | `opencode.db` | Full |
+| Gemini CLI | `~/.gemini` | `session-*.json` | Full |
+| Cursor | `~/.cursor` | Probe detection | Detect |
+| Windsurf | `~/.codeium` | Probe detection | Detect |
+| Aider | `~/.aider` | Probe detection | Detect |
+| Goose | `~/.config/goose` | Probe detection | Detect |
+| Amp | `~/.config/amp` | Probe detection | Detect |
+| Kimi CLI | `~/.kimi` | Probe detection | Detect |
+| Kiro | `~/.kiro` | Probe detection | Detect |
+| External | `~/.agentic-commons/external-usage/` | `*.jsonl` drop-in | Full |
 
-Minimal event shape:
+> **Full** = token-level analytics. **Detect** = `acommons probe` recognizes the tool.
+
+---
+
+## 🔒 Privacy Boundary
+
+**Your prompts never leave your machine.** Only aggregated stats are uploaded.
+
+| Uploaded | Never Uploaded |
+| --- | --- |
+| `date`, `source`, `model` | Prompt / message content |
+| `input_uncached`, `output` | Transcript text and reasoning blocks |
+| `cached_read`, `cached_write`, `total_io` | File paths and repository names |
+| | Raw session logs |
+
+---
+
+## 📦 External CLI Auto-Import
+
+Drop event logs into `~/.agentic-commons/external-usage/*.jsonl` and `acommons sync` will auto-scan and aggregate them.
+
+**Minimal event shape:**
 
 ```json
 {
@@ -135,87 +160,58 @@ Minimal event shape:
   "source": "opencode",
   "provider": "openai",
   "model": "gpt-5.1-codex-mini",
-  "usage": {
-    "prompt_tokens": 1200,
-    "completion_tokens": 320
-  }
+  "usage": { "prompt_tokens": 1200, "completion_tokens": 320 }
 }
 ```
 
-Also accepted:
+<details>
+<summary><strong>Also accepted field formats</strong></summary>
 
-- normalized fields: `input_uncached`, `output`, `cached_read`, `cached_write`
-- Anthropic fields: `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`
-- Gemini fields under `usageMetadata`: `promptTokenCount`, `candidatesTokenCount`
+| Format | Fields |
+| --- | --- |
+| Normalized | `input_uncached`, `output`, `cached_read`, `cached_write` |
+| Anthropic | `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` |
+| Gemini | `usageMetadata.promptTokenCount`, `usageMetadata.candidatesTokenCount` |
 
-### Local Test Then Upload
+</details>
 
-1. Create sample events:
+**Quick test:**
 
 ```bash
 mkdir -p ~/.agentic-commons/external-usage
 cat >> ~/.agentic-commons/external-usage/opencode.jsonl <<'JSON'
 {"timestamp":"2026-02-19T17:20:00Z","source":"opencode","provider":"openai","model":"gpt-5.1-codex-mini","usage":{"prompt_tokens":1200,"completion_tokens":300}}
 JSON
+acommons doctor   # verify detection
+acommons sync     # upload
 ```
 
-2. Verify local discovery:
+---
+
+## 🔧 Local Development
 
 ```bash
-acommons doctor
-```
-
-Look for:
-- `External usage dropbox`
-- `OpenCode dir`
-- `External parsed rows`
-
-3. Upload:
-
-```bash
-acommons sync
-```
-
-4. Optional template:
-
-Use `templates/multi-cli-usage-writer-template.mjs` as the standard writer for other CLI tools.
-
-## Local Development
-
-Install dependencies:
-
-```bash
+git clone https://github.com/Phlegonlabs/agentic-commons.git
+cd agentic-commons
 npm install
-```
-
-Validate:
-
-```bash
 npm run build:cli
 npm run typecheck -w @agentic-commons/shared
 ```
 
-## Security and Secrets
+---
 
-Never commit real secrets.
+## 📞 Support
 
-Production secrets must be managed via secret managers.
+| Channel | Link |
+| --- | --- |
+| Usage Questions | [GitHub Issues](https://github.com/Phlegonlabs/agentic-commons/issues) |
+| Feature Requests | [GitHub Issues](https://github.com/Phlegonlabs/agentic-commons/issues) |
+| Security Reports | [GitHub Security Advisories](https://github.com/Phlegonlabs/agentic-commons/security/advisories) (private) |
 
-See:
+---
 
-- `SECURITY.md`
+<div align="center">
 
-## Contributing
+**MIT License** · [Phlegonlabs](https://github.com/Phlegonlabs) — Private-by-design AI usage analytics
 
-Please read `CONTRIBUTING.md` before opening issues.
-
-## Support
-
-- Usage questions: GitHub Issues
-- Feature requests: GitHub Issues
-- Security reports: GitHub Security Advisories (private)
-- Maintenance policy: best-effort, no SLA
-
-## License
-
-MIT. See `LICENSE`.
+</div>
